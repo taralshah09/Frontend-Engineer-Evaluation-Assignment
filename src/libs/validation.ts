@@ -20,12 +20,12 @@ export const taskSchema = z.object({
         .string()
         .min(20, "Please provide detailed task instructions (min 20 characters)"),
     amount: z
-        .number({ invalid_type_error: "Amount must be a number" })
+        .number({ message: "Amount must be a number" })
         .int("Amount must be a whole number")
         .min(1, "At least 1 submission required")
         .max(100_000, "Amount seems too large"),
     reward: z
-        .number({ invalid_type_error: "Reward must be a number" })
+        .number({ message: "Reward must be a number" })
         .min(0.5, "Minimum reward is $0.50 AUD")
         .max(500, "Maximum reward is $500 AUD"),
     allow_multiple_submissions: z.boolean().default(false),

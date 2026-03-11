@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useQueryState } from "nuqs";
 import { useTasks, useCreateSubmission, useSubmissions } from "@/features/hooks";
 import { TypeBadge } from "../../components/common/Badge";
@@ -43,9 +43,12 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
     const [emailContent, setEmailContent] = useState("");
     const [screenshotB64, setScreenshotB64] = useState<string>("");
     const [submitted, setSubmitted] = useState(false);
-    const [viewMode, setViewMode] = useState<"card" | "inline">(() => {
-        return (localStorage.getItem("worker_view_mode") as "card" | "inline") || "card";
-    });
+    const [viewMode, setViewMode] = useState<"card" | "inline">("card");
+
+    useEffect(() => {
+        const saved = localStorage.getItem("worker_view_mode") as "card" | "inline";
+        if (saved) setViewMode(saved);
+    }, []);
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -324,7 +327,7 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                                 <MdCelebration size={56} color="var(--indigo)" />
                                             </div>
                                             <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Submitted!</div>
-                                            <div style={{ color: "var(--text-muted)", fontSize: 14 }}>Your submission is pending review. You'll earn ${openTask.reward.toFixed(2)} once approved.</div>
+                                            <div style={{ color: "var(--text-muted)", fontSize: 14 }}>Your submission is pending review. You&apos;ll earn ${openTask.reward.toFixed(2)} once approved.</div>
                                         </div>
                                     ) : (
                                         <>

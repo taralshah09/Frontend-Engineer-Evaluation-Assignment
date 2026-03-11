@@ -40,9 +40,12 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
     const [filterStatus, setFilterStatus] = useQueryState("status", { defaultValue: "all", shallow: false });
     const [selected, setSelected] = useState<string[]>([]);
     const [openTaskId, setOpenTaskId] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<"card" | "inline">(() => {
-        return (localStorage.getItem("admin_view_mode") as "card" | "inline") || "inline";
-    });
+    const [viewMode, setViewMode] = useState<"card" | "inline">("inline");
+
+    useEffect(() => {
+        const saved = localStorage.getItem("admin_view_mode") as "card" | "inline";
+        if (saved) setViewMode(saved);
+    }, []);
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "delete" } | null>(null);
     const [isBulkEditing, setIsBulkEditing] = useState(false);
     const [bulkValues, setBulkValues] = useState<{ status?: TaskStatus; reward?: number; task_type?: TaskType }>({});

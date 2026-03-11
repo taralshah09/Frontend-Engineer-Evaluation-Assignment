@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { WorkerFeedPage } from "@/pages/microtask/WorkerFeedPage";
+import { WorkerFeedPage } from "@/features/microtask/WorkerFeedPage";
 import { useSubmissions } from "@/features/hooks";
 import { userStore } from "@/storage";
 import type { Session, User } from "@/libs/types";

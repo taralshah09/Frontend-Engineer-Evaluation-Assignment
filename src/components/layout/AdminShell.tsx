@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { TaskComposerPage } from "@/pages/microtask/TaskComposerPage";
-import { AdminTasksPage } from "@/pages/microtask/AdminTasksPage";
-import { AdminSubmissionsPage } from "@/pages/microtask/AdminSubmissionsPage";
+import { TaskComposerPage } from "@/features/microtask/TaskComposerPage";
+import { AdminTasksPage } from "@/features/microtask/AdminTasksPage";
+import { AdminSubmissionsPage } from "@/features/microtask/AdminSubmissionsPage";
 import { useSubmissions, useCreateCampaign } from "@/features/hooks";
 import type { Session } from "@/libs/types";
 import { SEED_CAMPAIGNS } from "@/mock/seed";

@@ -356,20 +356,17 @@ export const submissionStore = {
 
         let submission: Submission;
 
-        if (
-            values.task_type === "social_media_posting" ||
-            values.task_type === "social_media_liking"
-        ) {
-            submission = {
-                ...base,
-                task_type: values.task_type,
-                post_url: values.post_url,
-            } as Submission;
-        } else {
+        if (values.task_type === "email_sending") {
             submission = {
                 ...base,
                 task_type: "email_sending",
                 email_content: values.email_content,
+            } as Submission;
+        } else {
+            submission = {
+                ...base,
+                task_type: values.task_type,
+                post_url: values.post_url,
             } as Submission;
         }
 

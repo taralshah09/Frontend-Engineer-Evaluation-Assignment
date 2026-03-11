@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import "@/styles/Microtask.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LoginPage } from "@/pages/microtask/LoginPage";
+import { LoginPage } from "@/features/microtask/LoginPage";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { WorkerShell } from "@/components/layout/WorkerShell";
 import { seedLocalStorage } from "@/mock/seed";
