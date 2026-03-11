@@ -1,0 +1,293 @@
+import React, { useState, useEffect } from "react";
+import {
+    useTasks,
+    useDeleteTask,
+    useUpdateTask,
+    useSubmissions,
+} from "@/features/hooks";
+import { Badge, TypeBadge } from "../../components/common/Badge";
+import { ProgressBar } from "../../components/common/ProgressBar";
+
+interface AdminTasksPageProps {
+    onOpenComposer: () => void;
+    onEditTask?: (id: string) => void;
+    onViewSubmissions: (taskId: string) => void;
+    campaignId?: string;
+}
+
+export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, campaignId }: AdminTasksPageProps) {
+    const [search, setSearch] = useState("");
+    const [filterType, setFilterType] = useState("all");
+    const [filterStatus, setFilterStatus] = useState("all");
+    const [selected, setSelected] = useState<string[]>([]);
+    const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+    const [toast, setToast] = useState<string | null>(null);
+
+    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+
+    const { data: tasks = [], isLoading } = useTasks();
+    const { data: allSubs = [] } = useSubmissions();
+    const deleteMutation = useDeleteTask();
+    const updateMutation = useUpdateTask();
+
+    const filtered = tasks.filter(t => {
+        if (campaignId && t.campaign_id !== campaignId) return false;
+        if (filterType !== "all" && t.task_type !== filterType) return false;
+        if (filterStatus !== "all" && t.status !== filterStatus) return false;
+        if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+        return true;
+    });
+
+    const toggleSelect = (id: string) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+    const toggleAll = () => setSelected(selected.length === filtered.length ? [] : filtered.map(t => t.id));
+
+    const openTask = openTaskId ? tasks.find(t => t.id === openTaskId) : null;
+    const taskSubs = openTaskId ? allSubs.filter(s => s.task_id === openTaskId) : [];
+
+    const campaignTasks = campaignId ? tasks.filter(t => t.campaign_id === campaignId) : tasks;
+    const campaignTaskIds = new Set(campaignTasks.map(t => t.id));
+    const campaignSubs = allSubs.filter(s => campaignTaskIds.has(s.task_id));
+
+    const activeTasks = campaignTasks.filter(t => t.status === "active").length;
+    const totalSubs = campaignTasks.reduce((acc, t) => acc + t.submissions_count, 0);
+    const pendingSubsCount = campaignSubs.filter(s => s.status === "pending").length;
+    const rewardsPaid = campaignSubs
+        .filter(s => s.status === "approved")
+        .reduce((acc, s) => {
+            const task = campaignTasks.find(t => t.id === s.task_id);
+            return acc + (task?.reward ?? 0);
+        }, 0);
+
+    const formatDate = (iso: string) => {
+        try { return new Date(iso).toLocaleDateString("en-AU", { month: "short", day: "numeric" }); }
+        catch { return iso; }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm("Delete this task? All associated submissions will also be removed.")) return;
+        try {
+            await deleteMutation.mutateAsync(id);
+            setOpenTaskId(null);
+            showToast("🗑️ Task deleted.");
+        } catch {
+            showToast("❌ Failed to delete task.");
+        }
+    };
+
+    const handlePause = async (id: string, currentStatus: string) => {
+        const newStatus = currentStatus === "paused" ? "active" : "paused";
+        try {
+            await updateMutation.mutateAsync({ id, values: { status: newStatus } });
+            showToast(`Task ${newStatus === "paused" ? "paused" : "resumed"}.`);
+        } catch {
+            showToast("❌ Failed to update task.");
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14 }}>
+                ⏳ Loading tasks…
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <div className="stats-grid">
+                {[
+                    { label: "Active Tasks", value: String(activeTasks), delta: `${campaignTasks.length} total${campaignId ? " in campaign" : ""}`, dir: "up", icon: "⚡", bg: "#eef2ff", ic: "#6366f1" },
+                    { label: "Total Submissions", value: String(totalSubs), delta: campaignId ? "in this campaign" : "across all tasks", dir: "up", icon: "📬", bg: "#ecfdf5", ic: "#059669" },
+                    { label: "Pending Review", value: String(pendingSubsCount), delta: pendingSubsCount > 0 ? "Needs attention" : "All clear", dir: pendingSubsCount > 0 ? "down" : "up", icon: "⏳", bg: "#fef3c7", ic: "#d97706" },
+                    { label: "Rewards Paid", value: `$${rewardsPaid.toFixed(2)}`, delta: campaignId ? "in this campaign" : "total approved", dir: "up", icon: "💰", bg: "#f0fdf4", ic: "#16a34a" },
+                ].map(s => (
+                    <div key={s.label} className="stat-card">
+                        <div className="stat-icon-wrap" style={{ background: s.bg }}>
+                            <span style={{ fontSize: 18 }}>{s.icon}</span>
+                        </div>
+                        <div className="stat-label">{s.label}</div>
+                        <div className="stat-value">{s.value}</div>
+                        <div className={`stat-delta ${s.dir}`}>{s.dir === "up" ? "↑" : "↓"} {s.delta}</div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="table-card">
+                <div className="table-header">
+                    <div className="table-title">All Tasks</div>
+                    <div className="table-count">{filtered.length} tasks</div>
+                    {selected.length > 0 && (
+                        <span className="badge badge-pending" style={{ marginLeft: 4 }}>{selected.length} selected</span>
+                    )}
+                    <div className="table-actions">
+                        <div className="search-wrap">
+                            <span className="search-icon">🔍</span>
+                            <input className="input input-sm" style={{ width: 200 }} placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)} />
+                        </div>
+                        <select className="select" value={filterType} onChange={e => setFilterType(e.target.value)}>
+                            <option value="all">All types</option>
+                            <option value="social_media_posting">Social Posting</option>
+                            <option value="email_sending">Email Sending</option>
+                            <option value="social_media_liking">Social Liking</option>
+                        </select>
+                        <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                            <option value="all">All status</option>
+                            <option value="active">Active</option>
+                            <option value="completed">Completed</option>
+                            <option value="paused">Paused</option>
+                        </select>
+                        {selected.length > 0 && <button className="btn btn-outline btn-sm">✏️ Bulk Edit</button>}
+                        <button className="btn btn-primary btn-sm" onClick={onOpenComposer}>+ New Task</button>
+                    </div>
+                </div>
+
+                <div className="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style={{ width: 40 }}>
+                                    <div className={`checkbox ${selected.length === filtered.length && filtered.length > 0 ? "checked" : ""}`} onClick={toggleAll} />
+                                </th>
+                                <th>Task</th>
+                                <th>Type</th>
+                                <th>Campaign</th>
+                                <th>Reward</th>
+                                <th>Progress</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.map(task => (
+                                <tr key={task.id} onClick={() => setOpenTaskId(task.id)}>
+                                    <td onClick={e => { e.stopPropagation(); toggleSelect(task.id); }}>
+                                        <div className={`checkbox ${selected.includes(task.id) ? "checked" : ""}`} />
+                                    </td>
+                                    <td>
+                                        <div style={{ fontWeight: 600, fontSize: 13.5, maxWidth: 280, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</div>
+                                    </td>
+                                    <td><TypeBadge type={task.task_type as any} /></td>
+                                    <td><span className="campaign-chip"><span />{task.campaign_id}</span></td>
+                                    <td><span className="reward-chip">${task.reward.toFixed(2)}</span></td>
+                                    <td style={{ minWidth: 160 }}>
+                                        <ProgressBar
+                                            value={task.approved_count}
+                                            max={task.amount}
+                                            color={task.approved_count / task.amount > 0.7 ? "#059669" : task.approved_count / task.amount > 0.3 ? "#d97706" : "#6366f1"}
+                                        />
+                                    </td>
+                                    <td><Badge status={task.status} /></td>
+                                    <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatDate(task.created_at)}</td>
+                                    <td onClick={e => e.stopPropagation()}>
+                                        <div style={{ display: "flex", gap: 4 }}>
+                                            <button className="btn btn-ghost btn-xs" onClick={() => setOpenTaskId(task.id)}>View</button>
+                                            <button className="btn btn-ghost btn-xs" onClick={() => onViewSubmissions(task.id)}>Submissions</button>
+                                            <button className="btn btn-ghost btn-xs" onClick={() => onEditTask?.(task.id)}>Edit</button>
+                                            <button
+                                                className="btn btn-xs"
+                                                style={{ color: "var(--rose)", background: "transparent" }}
+                                                onClick={() => handleDelete(task.id)}
+                                                disabled={deleteMutation.isPending}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {filtered.length === 0 && (
+                    <div className="empty-state">
+                        <div className="empty-icon">📋</div>
+                        <div className="empty-title">No tasks found</div>
+                        <div className="empty-desc">Try adjusting your filters or create a new task.</div>
+                    </div>
+                )}
+            </div>
+
+            {openTask && (
+                <div className="sheet-overlay" onClick={() => setOpenTaskId(null)}>
+                    <div className="sheet sheet-wide" onClick={e => e.stopPropagation()}>
+                        <div className="sheet-header">
+                            <div>
+                                <TypeBadge type={openTask.task_type as any} />
+                                <div className="sheet-title" style={{ marginTop: 8 }}>{openTask.title}</div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                                    <span className="campaign-chip"><span />{openTask.campaign_id}</span>
+                                    <Badge status={openTask.status} />
+                                </div>
+                            </div>
+                            <button className="btn btn-ghost btn-sm sheet-close" onClick={() => setOpenTaskId(null)}>✕</button>
+                        </div>
+                        <div className="sheet-body">
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+                                {[
+                                    { label: "Reward", value: `$${openTask.reward.toFixed(2)} AUD` },
+                                    { label: "Submissions", value: `${openTask.submissions_count}/${openTask.amount}` },
+                                    { label: "Approved", value: String(openTask.approved_count) },
+                                ].map(s => (
+                                    <div key={s.label} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
+                                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{s.label}</div>
+                                        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 18 }}>{s.value}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div style={{ marginBottom: 12 }}>
+                                <div className="form-label" style={{ marginBottom: 8 }}>Slot progress</div>
+                                <ProgressBar value={openTask.approved_count} max={openTask.amount} />
+                            </div>
+                            <div className="divider" />
+                            <div className="section-title">Recent Submissions</div>
+                            {taskSubs.slice(0, 3).map(sub => (
+                                <div key={sub.id} className="detail-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <div className="avatar avatar-sm" style={{ background: "#6366f1", flexShrink: 0 }}>
+                                        {sub.user_id.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{sub.user_id.replace("user_", "")}</div>
+                                        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{formatDate(sub.submitted_at)}</div>
+                                    </div>
+                                    <Badge status={sub.status} />
+                                </div>
+                            ))}
+                            {taskSubs.length === 0 && (
+                                <div style={{ color: "var(--text-muted)", fontSize: 13, padding: "12px 0" }}>No submissions yet.</div>
+                            )}
+                            <div style={{ marginTop: 16 }}>
+                                <button
+                                    className="btn btn-outline"
+                                    style={{ width: "100%", justifyContent: "center" }}
+                                    onClick={() => { setOpenTaskId(null); onViewSubmissions(openTask.id); }}
+                                >View all submissions →</button>
+                            </div>
+                        </div>
+                        <div className="sheet-footer">
+                            <button className="btn btn-primary" onClick={() => { setOpenTaskId(null); onEditTask?.(openTask.id); }}>Edit Task</button>
+                            <button
+                                className="btn btn-outline"
+                                onClick={() => handlePause(openTask.id, openTask.status)}
+                                disabled={updateMutation.isPending}
+                            >
+                                {openTask.status === "paused" ? "Resume Task" : "Pause Task"}
+                            </button>
+                            <button
+                                className="btn btn-danger"
+                                style={{ marginLeft: "auto" }}
+                                onClick={() => handleDelete(openTask.id)}
+                                disabled={deleteMutation.isPending}
+                            >
+                                {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {toast && <div className="toast"><span className="toast-icon">{toast.startsWith("🗑️") ? "🗑️" : toast.startsWith("❌") ? "❌" : "✅"}</span>{toast}</div>}
+        </>
+    );
+}
