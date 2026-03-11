@@ -11,6 +11,10 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { $convertFromMarkdownString, $convertToMarkdownString, TRANSFORMERS } from "@lexical/markdown";
 import { EditorState } from "lexical";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { ListNode, ListItemNode } from "@lexical/list";
+import { CodeNode } from "@lexical/code";
+import { LinkNode, AutoLinkNode } from "@lexical/link";
 
 const theme = {
     paragraph: "editor-paragraph",
@@ -51,6 +55,7 @@ export function LexicalEditor({ initialValue, onChange }: LexicalEditorProps) {
     const initialConfig = {
         namespace: "TaskComposer",
         theme,
+        nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode, AutoLinkNode],
         onError: (error: Error) => console.error(error),
     };
 
