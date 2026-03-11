@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQueryState } from "nuqs";
 import { useTasks, useCreateSubmission, useSubmissions } from "@/features/hooks";
+import { MarkdownRenderer } from "../../components/common/MarkdownRenderer";
 import { TypeBadge } from "../../components/common/Badge";
 import type { Session, Task, SubmissionFormValues } from "@/libs/types";
 import {
@@ -307,15 +308,19 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                         ))}
                                     </div>
                                     {openTask.description && (
-                                        <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>{openTask.description}</div>
+                                        <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>
+                                            <MarkdownRenderer content={openTask.description} />
+                                        </div>
                                     )}
                                     <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 16, marginBottom: 16 }}>
-                                        <div style={{ fontFamily: "monospace", fontSize: 13, color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
-                                            {openTask.details || (
-                                                openTask.task_type === "social_media_posting" ? "Post on Twitter/X or LinkedIn\n• Use campaign hashtags\n• Tag @MicroTaskIO\n• Post must be public\n\nSubmit: Post URL + Screenshot"
-                                                    : openTask.task_type === "email_sending" ? "Send email to 5+ recipients\n• Include key features\n• Add sign-up CTA link\n• Personalise each email\n\nSubmit: Full email content + Screenshot"
-                                                        : "Like the specified post\n• Use personal account only\n• Account 3+ months old\n• 50+ followers required\n\nSubmit: Profile URL + Screenshot"
-                                            )}
+                                        <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+                                            <MarkdownRenderer
+                                                content={openTask.details || (
+                                                    openTask.task_type === "social_media_posting" ? "Post on Twitter/X or LinkedIn\n• Use campaign hashtags\n• Tag @MicroTaskIO\n• Post must be public\n\nSubmit: Post URL + Screenshot"
+                                                        : openTask.task_type === "email_sending" ? "Send email to 5+ recipients\n• Include key features\n• Add sign-up CTA link\n• Personalise each email\n\nSubmit: Full email content + Screenshot"
+                                                            : "Like the specified post\n• Use personal account only\n• Account 3+ months old\n• 50+ followers required\n\nSubmit: Profile URL + Screenshot"
+                                                )}
+                                            />
                                         </div>
                                     </div>
                                 </>

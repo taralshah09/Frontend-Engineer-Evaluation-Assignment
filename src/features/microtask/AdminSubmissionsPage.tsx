@@ -8,6 +8,7 @@ import {
 import { useQueryState } from "nuqs";
 import { Badge, TypeBadge } from "../../components/common/Badge";
 import type { Submission } from "@/libs/types";
+import { MarkdownRenderer } from "../../components/common/MarkdownRenderer";
 import {
     MdSearch,
     MdHourglassEmpty,
@@ -282,7 +283,9 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                             {openSub.task_type === "email_sending" && (
                                 <div style={{ marginBottom: 16 }}>
                                     <div className="form-label">Email Content</div>
-                                    <div className="sub-evidence-box">{(openSub as any).email_content}</div>
+                                    <div className="sub-evidence-box">
+                                        <MarkdownRenderer content={(openSub as any).email_content} />
+                                    </div>
                                 </div>
                             )}
                             <div style={{ marginBottom: 20 }}>

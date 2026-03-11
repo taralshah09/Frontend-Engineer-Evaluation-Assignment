@@ -34,14 +34,30 @@ const theme = {
     },
 };
 
+// Defined at module scope so the object reference is stable across renders.
+// If initialConfig is recreated inside the component, Lexical re-mounts the
+// editor on every keystroke — that is the root cause of "typing in reverse".
+const initialConfig = {
+    namespace: "TaskComposer",
+    theme,
+    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode, AutoLinkNode],
+    onError: (error: Error) => console.error(error),
+};
+
 function MarkdownInitialContentPlugin({ initialMarkdown }: { initialMarkdown: string }) {
     const [editor] = useLexicalComposerContext();
 
     useEffect(() => {
+        // Run only once on mount. If `initialMarkdown` were a dependency here
+        // the effect would fire on every onChange call (because the parent
+        // feeds the new markdown back as `initialValue`), and the editor
+        // content would be overwritten continuously — breaking both normal
+        // typing and markdown shortcuts.
         editor.update(() => {
             $convertFromMarkdownString(initialMarkdown, TRANSFORMERS);
         });
-    }, [editor, initialMarkdown]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editor]);
 
     return null;
 }
@@ -52,13 +68,6 @@ interface LexicalEditorProps {
 }
 
 export function LexicalEditor({ initialValue, onChange }: LexicalEditorProps) {
-    const initialConfig = {
-        namespace: "TaskComposer",
-        theme,
-        nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode, LinkNode, AutoLinkNode],
-        onError: (error: Error) => console.error(error),
-    };
-
     const handleChange = (editorState: EditorState) => {
         editorState.read(() => {
             const markdown = $convertToMarkdownString(TRANSFORMERS);

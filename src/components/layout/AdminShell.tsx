@@ -4,9 +4,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { TaskComposerPage } from "@/features/microtask/TaskComposerPage";
 import { AdminTasksPage } from "@/features/microtask/AdminTasksPage";
 import { AdminSubmissionsPage } from "@/features/microtask/AdminSubmissionsPage";
-import { useSubmissions, useCreateCampaign } from "@/features/hooks";
+import { useSubmissions, useCreateCampaign, useCampaigns } from "@/features/hooks";
 import type { Session } from "@/libs/types";
-import { SEED_CAMPAIGNS } from "@/mock/seed";
 import {
     MdFlashOn,
     MdOutlineInbox,
@@ -38,6 +37,7 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
     const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
     const [newCampaignName, setNewCampaignName] = useState("");
     const createCampaignMutation = useCreateCampaign();
+    const { data: campaigns = [] } = useCampaigns();
     const profileRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -101,7 +101,7 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
     };
 
     const activeCampaign = activeCampaignId
-        ? SEED_CAMPAIGNS.find((c) => c.id === activeCampaignId)
+        ? campaigns.find((c) => c.id === activeCampaignId)
         : null;
 
     const getTopbarTitle = () => {
@@ -189,7 +189,7 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
 
                 <div className="sidebar-section" style={{ marginTop: 8 }}>
                     <div className="sidebar-section-label">Campaigns</div>
-                    {SEED_CAMPAIGNS.map((c, i) => (
+                    {campaigns.map((c, i) => (
                         <div
                             key={c.id}
                             className={`nav-item ${activeCampaignId === c.id && page === "tasks" && !composing ? "active" : ""}`}

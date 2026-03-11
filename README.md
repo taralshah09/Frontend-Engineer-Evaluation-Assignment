@@ -1,6 +1,6 @@
 # MicroTask Platform
 
-An internal microtask management SPA built with **Next.js 15 (App Router)**, **React**, **TypeScript**, and **TanStack Query**. All data is stored client-side in `localStorage` via a simulated async storage layer that introduces realistic latency and occasional random errors.
+An internal microtask management SPA built with **Next.js 16 (App Router)**, **React 19**, **TypeScript**, and **TanStack Query v5**. All data is stored client-side in `localStorage` via a simulated async storage layer that introduces realistic latency and occasional random errors.
 
 ---
 
@@ -13,6 +13,7 @@ An internal microtask management SPA built with **Next.js 15 (App Router)**, **R
 - [Authentication Flow](#authentication-flow)
 - [Worker Flow](#worker-flow)
 - [Admin Flow](#admin-flow)
+- [Theme System](#theme-system)
 - [Component Reference](#component-reference)
 
 ---
@@ -21,11 +22,15 @@ An internal microtask management SPA built with **Next.js 15 (App Router)**, **R
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 15 (App Router) |
-| UI | React 18 + TypeScript |
+| Framework | Next.js 16 (App Router) |
+| UI | React 19 + TypeScript |
 | Data fetching | TanStack Query v5 |
+| Data tables | TanStack Table v8 |
+| Rich text editor | Lexical (`@lexical/react`) |
+| Forms | React Hook Form + Zod v4 |
 | Persistence | `localStorage` (mock server) |
 | Styling | Vanilla CSS (`Microtask.css`) |
+| Icons | `react-icons` |
 | ID generation | `nanoid` |
 
 ---
@@ -34,39 +39,42 @@ An internal microtask management SPA built with **Next.js 15 (App Router)**, **R
 
 ```
 src/
-├── Microtask.tsx              # Root component — session gate, QueryClientProvider
+├── Microtask.tsx                   # Root component — session gate, QueryClientProvider, ThemeProvider
 ├── app/
-│   ├── layout.tsx             # Next.js root layout (fonts, globals.css)
-│   └── page.tsx               # Renders <Microtask />
+│   ├── layout.tsx                  # Next.js root layout (fonts, globals.css)
+│   └── page.tsx                    # Renders <Microtask />
 ├── auth/
-│   └── AuthProvider.tsx       # (Unused in current flow) Context + useAuth hook
+│   └── AuthProvider.tsx            # Context + useAuth hook
 ├── components/
 │   ├── common/
-│   │   ├── Avatar.tsx         # Initials avatar
-│   │   ├── Badge.tsx          # Status + type badges
-│   │   └── ProgressBar.tsx    # Slot fill progress bar
+│   │   ├── Avatar.tsx              # Initials avatar
+│   │   ├── Badge.tsx               # Status + type badges
+│   │   ├── LexicalEditor.tsx       # Rich text / markdown editor (Lexical-based)
+│   │   ├── ProgressBar.tsx         # Slot fill progress bar
+│   │   ├── ThemeContext.tsx        # ThemeProvider context + useTheme hook
+│   │   └── ThemeToggle.tsx         # Dark / Light mode toggle button
 │   └── layout/
-│       ├── AdminShell.tsx     # Admin app shell (sidebar, topbar, routing)
-│       └── WorkerShell.tsx    # Worker app shell (sidebar, topbar, routing)
+│       ├── AdminShell.tsx          # Admin app shell (sidebar, topbar, routing)
+│       └── WorkerShell.tsx         # Worker app shell (sidebar, topbar, routing)
 ├── data/
-│   └── microtaskData.ts       # Static reference data (unused in runtime)
+│   └── microtaskData.ts            # Static reference data
 ├── features/
-│   └── hooks.ts               # TanStack Query hooks for tasks and submissions
+│   ├── hooks.ts                    # TanStack Query hooks for tasks and submissions
+│   └── microtask/
+│       ├── AdminSubmissionsPage.tsx  # Submission review table with approve/reject
+│       ├── AdminTasksPage.tsx        # Admin task table with campaign filter & stats
+│       ├── LoginPage.tsx             # Login form UI
+│       ├── TaskComposerPage.tsx      # Create/edit task form (with Lexical editor)
+│       └── WorkerFeedPage.tsx        # Worker task feed + submission form
 ├── libs/
-│   ├── types.ts               # All TypeScript interfaces and type aliases
-│   └── validation.ts          # Zod schemas for form validation
+│   ├── types.ts                    # All TypeScript interfaces and type aliases
+│   └── validation.ts               # Zod schemas for form validation
 ├── mock/
-│   └── seed.ts                # Seed data: SEED_CAMPAIGNS, users, tasks, submissions
-├── pages/microtask/
-│   ├── LoginPage.tsx          # Login form UI
-│   ├── WorkerFeedPage.tsx     # Worker task feed + submission form
-│   ├── AdminTasksPage.tsx     # Admin task table with campaign filter & stats
-│   ├── AdminSubmissionsPage.tsx # Submission review table with approve/reject
-│   └── TaskComposerPage.tsx   # Create/edit task form
+│   └── seed.ts                     # Seed data: SEED_CAMPAIGNS, users, tasks, submissions
 ├── storage/
-│   └── index.ts               # Mock async storage layer (authStore, taskStore, submissionStore, etc.)
+│   └── index.ts                    # Mock async storage layer (authStore, taskStore, submissionStore, etc.)
 └── styles/
-    └── Microtask.css          # All application CSS
+    └── Microtask.css               # All application CSS (includes theme variables)
 ```
 
 ---
@@ -115,6 +123,7 @@ src/
 | `mt_submissions` | `Submission[]` |
 | `mt_campaigns` | `Campaign[]` |
 | `mt_session` | Active `Session` |
+| `theme` | `'dark' \| 'light'` |
 
 ---
 
@@ -182,7 +191,7 @@ Demo credentials shown on the login screen:
   │     │     └── "Submit →" button → opens task detail sheet
   │     │
   │     └── Task Detail / Submit Sheet (slide-in overlay)
-  │           ├── Detail view: reward, slots left, description, instructions
+  │           ├── Detail view: reward, slots left, description, instructions (rendered markdown)
   │           └── Submit view (submitMode = true)
   │                 ├── Social posting / liking → Post URL field + screenshot upload
   │                 ├── Email sending          → Email content textarea + screenshot upload
@@ -213,7 +222,7 @@ Demo credentials shown on the login screen:
   │     └── Campaign list (from SEED_CAMPAIGNS)
   │           └── Click campaign → activeCampaignId = c.id, page = 'tasks'
   │
-  ├── Topbar breadcrumb
+  ├── Topbar breadcrumb + ThemeToggle button (top-right)
   │     ├── Composing            → "Tasks › Edit Task" or "Tasks › New Task"
   │     ├── Campaign filter active → "Tasks › {campaign.name}" (click "Tasks" to clear)
   │     └── Default              → "Task Management" / "Submissions"
@@ -223,7 +232,7 @@ Demo credentials shown on the login screen:
   │     ├── DATA: useTask(editTaskId) → pre-fills form when editing
   │     │         campaignStore.getAll() → populates campaign dropdown
   │     │
-  │     ├── Form: task type selector, title, description, full details (markdown),
+  │     ├── Form: task type selector, title, description, full details (Lexical rich-text editor),
   │     │         campaign, amount (slots), reward (AUD), allow multiple submissions toggle
   │     ├── Live budget estimate: amount × reward
   │     ├── Submission form preview (read-only, changes with task type)
@@ -238,7 +247,7 @@ Demo credentials shown on the login screen:
   │     ├── Stats cards (scoped to active campaign or all):
   │     │     Active Tasks, Total Submissions, Pending Review, Rewards Paid
   │     │
-  │     ├── Task table
+  │     ├── Task table (TanStack Table)
   │     │     ├── Filters: search, type, status
   │     │     ├── Multi-select checkboxes + "Bulk Edit" button
   │     │     ├── Columns: Task, Type, Campaign, Reward, Progress bar, Status, Created, Actions
@@ -261,7 +270,7 @@ Demo credentials shown on the login screen:
         ├── Filter chip (when filterTaskId set): "Filtered by task: {title}" with ✕ clear button
         ├── Tabs: Pending ({n}) | Approved ({n}) | Rejected ({n})
         │
-        ├── Submissions table
+        ├── Submissions table (TanStack Table)
         │     ├── Columns: Worker avatar, Task title, Type, Submitted date, Evidence preview, Status
         │     ├── Pending tab adds: Approve / Reject quick-action buttons
         │     └── Rejected tab adds: Rejection reason column
@@ -282,25 +291,39 @@ Demo credentials shown on the login screen:
 
 ---
 
+## Theme System
+
+The app ships with **Dark mode** (default) and **Light mode**, toggled via a button in the topbar.
+
+- **`ThemeProvider`** (`src/components/common/ThemeContext.tsx`) — wraps the app; reads preference from `localStorage` (`theme` key) on mount and falls back to `prefers-color-scheme` if no stored value exists.
+- **`useTheme()`** — hook to access `{ theme, toggleTheme }` anywhere inside the provider.
+- **`ThemeToggle`** (`src/components/common/ThemeToggle.tsx`) — icon button that calls `toggleTheme()`.
+- CSS variables are defined under `[data-theme="dark"]` and `[data-theme="light"]` selectors in `Microtask.css`; the `data-theme` attribute is set on `<html>` by the provider.
+
+---
+
 ## Component Reference
 
 | Component | Location | Role |
 |---|---|---|
-| `Microtask` | `src/Microtask.tsx` | Root entry: session gate, QueryClientProvider, seed |
-| `LoginPage` | `pages/microtask/LoginPage.tsx` | Credential form, demo hint |
+| `Microtask` | `src/Microtask.tsx` | Root entry: session gate, QueryClientProvider, ThemeProvider, seed |
+| `LoginPage` | `features/microtask/LoginPage.tsx` | Credential form, demo hint |
 | `AdminShell` | `components/layout/AdminShell.tsx` | Admin layout shell, in-memory routing |
 | `WorkerShell` | `components/layout/WorkerShell.tsx` | Worker layout shell, page switching |
-| `WorkerFeedPage` | `pages/microtask/WorkerFeedPage.tsx` | Task feed, filtering, submission form |
-| `AdminTasksPage` | `pages/microtask/AdminTasksPage.tsx` | Task management table + campaign stats |
-| `AdminSubmissionsPage` | `pages/microtask/AdminSubmissionsPage.tsx` | Submission review with approve/reject |
-| `TaskComposerPage` | `pages/microtask/TaskComposerPage.tsx` | Create / edit task form |
+| `WorkerFeedPage` | `features/microtask/WorkerFeedPage.tsx` | Task feed, filtering, submission form |
+| `AdminTasksPage` | `features/microtask/AdminTasksPage.tsx` | Task management table + campaign stats |
+| `AdminSubmissionsPage` | `features/microtask/AdminSubmissionsPage.tsx` | Submission review with approve/reject |
+| `TaskComposerPage` | `features/microtask/TaskComposerPage.tsx` | Create / edit task form (Lexical editor) |
+| `LexicalEditor` | `components/common/LexicalEditor.tsx` | Rich text / markdown editor component |
+| `ThemeProvider` / `useTheme` | `components/common/ThemeContext.tsx` | Theme context + hook |
+| `ThemeToggle` | `components/common/ThemeToggle.tsx` | Dark / Light mode toggle button |
 | `Badge` / `TypeBadge` | `components/common/Badge.tsx` | Status and task-type badges |
 | `ProgressBar` | `components/common/ProgressBar.tsx` | Slot fill indicator |
 | `Avatar` | `components/common/Avatar.tsx` | Initials avatar component |
 
 ### TanStack Query Hooks (`features/hooks.ts`)
 
-| Hook | Mutation / Query | Invalidates |
+| Hook | Type | Invalidates |
 |---|---|---|
 | `useTasks(filters?)` | Query | — |
 | `useTask(id)` | Query | — |
@@ -313,3 +336,21 @@ Demo credentials shown on the login screen:
 | `useCreateSubmission()` | Mutation | `submissionKeys.all`, task detail + list |
 | `useApproveSubmission()` | Mutation | `submissionKeys.all`, task detail + list |
 | `useRejectSubmission()` | Mutation | `submissionKeys.all`, task detail + list |
+
+---
+
+## Getting Started
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+| Script | Description |
+|---|---|
+| `npm run dev` | Start the Next.js development server |
+| `npm run build` | Build the production bundle |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Run ESLint |

@@ -5,6 +5,7 @@ import type {
     TaskFilters,
     TaskFormValues,
     BulkUpdateTaskPayload,
+    Campaign,
     Submission,
     SubmissionFilters,
     SubmissionFormValues,
@@ -24,6 +25,10 @@ export const submissionKeys = {
     list: (filters?: SubmissionFilters) =>
         ["submissions", "list", filters] as const,
     byTask: (taskId: string) => ["submissions", "task", taskId] as const,
+};
+
+export const campaignKeys = {
+    all: ["campaigns"] as const,
 };
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
@@ -152,12 +157,20 @@ export function useRejectSubmission() {
     });
 }
 
+export function useCampaigns() {
+    return useQuery<Campaign[]>({
+        queryKey: campaignKeys.all,
+        queryFn: () => campaignStore.getAll(),
+    });
+}
+
 export function useCreateCampaign() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (values: { name: string }) => campaignStore.create(values.name),
+        mutationFn: (values: { name: string; description?: string }) =>
+            campaignStore.create(values.name, values.description),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["campaigns"] });
+            qc.invalidateQueries({ queryKey: campaignKeys.all });
         },
     });
 }
