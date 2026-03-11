@@ -5,6 +5,7 @@ import {
     useUpdateTask,
     useSubmissions,
 } from "@/features/hooks";
+import { TaskType, TaskStatus } from "@/libs/types";
 import { Badge, TypeBadge } from "../../components/common/Badge";
 import { ProgressBar } from "../../components/common/ProgressBar";
 import {
@@ -41,6 +42,8 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
         return (localStorage.getItem("admin_view_mode") as "card" | "inline") || "inline";
     });
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "delete" } | null>(null);
+    const [isBulkEditing, setIsBulkEditing] = useState(false);
+    const [bulkValues, setBulkValues] = useState<{ status?: TaskStatus; reward?: number; task_type?: TaskType }>({});
 
     const showToast = (msg: string, type: "success" | "error" | "delete" = "success") => {
         setToast({ msg, type });
@@ -106,6 +109,21 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
         }
     };
 
+    const handleBulkUpdate = async () => {
+        if (selected.length === 0) return;
+        try {
+            await Promise.all(selected.map(id =>
+                updateMutation.mutateAsync({ id, values: bulkValues })
+            ));
+            showToast(`${selected.length} tasks updated successfully.`);
+            setIsBulkEditing(false);
+            setBulkValues({});
+            setSelected([]);
+        } catch {
+            showToast("Failed to update some tasks.", "error");
+        }
+    };
+
     if (isLoading) {
         return (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14, gap: 8 }}>
@@ -159,7 +177,11 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                             <option value="paused">Paused</option>
                         </select>
                         {selected.length > 0 && (
-                            <button className="btn btn-outline btn-sm" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <button
+                                className="btn btn-outline btn-sm"
+                                style={{ display: "flex", alignItems: "center", gap: 6 }}
+                                onClick={() => setIsBulkEditing(true)}
+                            >
                                 <MdEdit size={14} /> Bulk Edit
                             </button>
                         )}
@@ -362,6 +384,78 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                 disabled={deleteMutation.isPending}
                             >
                                 {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isBulkEditing && (
+                <div className="sheet-overlay" onClick={() => setIsBulkEditing(false)}>
+                    <div className="sheet" onClick={e => e.stopPropagation()}>
+                        <div className="sheet-header">
+                            <div>
+                                <div className="sheet-title">Bulk Edit {selected.length} Tasks</div>
+                                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>Apply changes to all selected tasks.</div>
+                            </div>
+                            <button className="btn btn-ghost btn-sm sheet-close" onClick={() => setIsBulkEditing(false)}><MdClose size={20} /></button>
+                        </div>
+                        <div className="sheet-body">
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label className="form-label">Status</label>
+                                <select
+                                    className="select"
+                                    style={{ width: "100%" }}
+                                    value={bulkValues.status || ""}
+                                    onChange={e => setBulkValues({ ...bulkValues, status: e.target.value as TaskStatus || undefined })}
+                                >
+                                    <option value="">No change</option>
+                                    <option value="active">Active</option>
+                                    <option value="paused">Paused</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label className="form-label">Reward ($ AUD)</label>
+                                <input
+                                    type="number"
+                                    className="input"
+                                    style={{ width: "100%" }}
+                                    placeholder="e.g. 1.50"
+                                    step="0.01"
+                                    value={bulkValues.reward || ""}
+                                    onChange={e => setBulkValues({ ...bulkValues, reward: e.target.value ? parseFloat(e.target.value) : undefined })}
+                                />
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: 16 }}>
+                                <label className="form-label">Task Type</label>
+                                <select
+                                    className="select"
+                                    style={{ width: "100%" }}
+                                    value={bulkValues.task_type || ""}
+                                    onChange={e => setBulkValues({ ...bulkValues, task_type: e.target.value as TaskType || undefined })}
+                                >
+                                    <option value="">No change</option>
+                                    <option value="social_media_posting">Social Posting</option>
+                                    <option value="email_sending">Email Sending</option>
+                                    <option value="social_media_liking">Social Liking</option>
+                                </select>
+                            </div>
+
+                            <div style={{ background: "var(--surface-2)", padding: 12, borderRadius: "var(--radius-sm)", fontSize: 12, color: "var(--text-muted)", marginTop: 20 }}>
+                                <strong>Note:</strong> Only fields with values provided will be updated. Blank fields will remain unchanged.
+                            </div>
+                        </div>
+                        <div className="sheet-footer">
+                            <button className="btn btn-outline" onClick={() => setIsBulkEditing(false)}>Cancel</button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={handleBulkUpdate}
+                                disabled={updateMutation.isPending || Object.keys(bulkValues).length === 0}
+                            >
+                                {updateMutation.isPending ? "Updating..." : "Save Changes"}
                             </button>
                         </div>
                     </div>
