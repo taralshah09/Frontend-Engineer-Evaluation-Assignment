@@ -10,6 +10,7 @@ import {
     MdMenu,
     MdExpandLess,
 } from "react-icons/md";
+import { ThemeToggle } from "@/components/common/ThemeToggle";
 
 interface WorkerShellProps {
     session: Session;
@@ -60,10 +61,50 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
         await onLogout();
     };
 
+    const [sidebarWidth, setSidebarWidth] = useState(232);
+    const [isResizing, setIsResizing] = useState(false);
+
+    useEffect(() => {
+        const savedWidth = localStorage.getItem("workerSidebarWidth");
+        if (savedWidth) setSidebarWidth(parseInt(savedWidth, 10));
+    }, []);
+
+    const startResizing = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizing) return;
+            let newWidth = e.clientX;
+            if (newWidth < 180) newWidth = 180;
+            if (newWidth > 480) newWidth = 480;
+            setSidebarWidth(newWidth);
+        };
+
+        const handleMouseUp = () => {
+            if (isResizing) {
+                setIsResizing(false);
+                localStorage.setItem("workerSidebarWidth", sidebarWidth.toString());
+            }
+        };
+
+        if (isResizing) {
+            window.addEventListener("mousemove", handleMouseMove);
+            window.addEventListener("mouseup", handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, [isResizing, sidebarWidth]);
+
     return (
-        <div className={`app${sidebarOpen ? " sidebar-open" : ""}`}>
+        <div className={`app${sidebarOpen ? " sidebar-open" : ""}`} style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
             <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
-            <aside className="sidebar">
+            <aside className="sidebar" style={{ width: `var(--sidebar-width)` }}>
                 <div className="sidebar-logo">
                     <div className="logo-mark">M</div>
                     <span className="logo-text">microtask</span>
@@ -81,9 +122,9 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                 </div>
 
                 <div style={{ margin: "12px 8px", background: "rgba(91,91,214,0.1)", border: "1px solid rgba(91,91,214,0.2)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "#6366f1", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>Your Earnings</div>
-                    <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 20, color: "#e2e8f4" }}>${totalEarned.toFixed(2)}</div>
-                    <div style={{ fontSize: 11, color: "#4b5568", marginTop: 2 }}>{approvedCount}/{totalSubmissions} approved</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>Your Earnings</div>
+                    <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 20, color: "var(--text-primary)" }}>${totalEarned.toFixed(2)}</div>
+                    <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{approvedCount}/{totalSubmissions} approved</div>
                 </div>
 
                 <div className="sidebar-footer">
@@ -100,6 +141,11 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                 </div>
             </aside>
 
+            <div
+                className={`sidebar-resizer ${isResizing ? "is-resizing" : ""}`}
+                onMouseDown={startResizing}
+            />
+
             <main className="main">
                 <div className="topbar">
                     <div className="topbar-menu-btn" onClick={() => setSidebarOpen(v => !v)}>
@@ -111,6 +157,7 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                         {page === "feed" ? "Browse and complete available tasks" : "Your account and earnings"}
                     </span>
                     <div className="topbar-actions">
+                        <ThemeToggle />
                         <div ref={profileRef} style={{ position: "relative" }}>
                             <div
                                 className="avatar avatar-sm"
@@ -122,8 +169,8 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                             {profileOpen && (
                                 <div style={{
                                     position: "absolute", right: 0, top: "calc(100% + 8px)", width: 220,
-                                    background: "#16191f", border: "1px solid var(--border)", borderRadius: "var(--radius)",
-                                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 1000, overflow: "hidden",
+                                    background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
+                                    boxShadow: "var(--shadow-lg)", zIndex: 1000, overflow: "hidden",
                                 }}>
                                     <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
                                         <div className="avatar" style={{ background: "#059669", width: 36, height: 36, fontSize: 14, flexShrink: 0 }}>{initials}</div>
@@ -136,11 +183,11 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                                     <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
                                         <div>
                                             <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Earned</div>
-                                            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 16, color: "#e2e8f4" }}>${totalEarned.toFixed(2)}</div>
+                                            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>${totalEarned.toFixed(2)}</div>
                                         </div>
                                         <div>
                                             <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>Approved</div>
-                                            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 16, color: "#e2e8f4" }}>{approvedCount}/{totalSubmissions}</div>
+                                            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>{approvedCount}/{totalSubmissions}</div>
                                         </div>
                                     </div>
                                     <div style={{ padding: "6px 0" }}>

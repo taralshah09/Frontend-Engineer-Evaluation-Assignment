@@ -14,6 +14,7 @@ import {
     MdMenu,
     MdExpandLess,
 } from "react-icons/md";
+import { ThemeToggle } from "@/components/common/ThemeToggle";
 
 interface AdminShellProps {
     session: Session;
@@ -111,10 +112,50 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
         return "Manage and monitor all tasks";
     };
 
+    const [sidebarWidth, setSidebarWidth] = useState(232);
+    const [isResizing, setIsResizing] = useState(false);
+
+    useEffect(() => {
+        const savedWidth = localStorage.getItem("adminSidebarWidth");
+        if (savedWidth) setSidebarWidth(parseInt(savedWidth, 10));
+    }, []);
+
+    const startResizing = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizing) return;
+            let newWidth = e.clientX;
+            if (newWidth < 180) newWidth = 180;
+            if (newWidth > 480) newWidth = 480;
+            setSidebarWidth(newWidth);
+        };
+
+        const handleMouseUp = () => {
+            if (isResizing) {
+                setIsResizing(false);
+                localStorage.setItem("adminSidebarWidth", sidebarWidth.toString());
+            }
+        };
+
+        if (isResizing) {
+            window.addEventListener("mousemove", handleMouseMove);
+            window.addEventListener("mouseup", handleMouseUp);
+        }
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, [isResizing, sidebarWidth]);
+
     return (
-        <div className={`app${sidebarOpen ? " sidebar-open" : ""}`}>
+        <div className={`app${sidebarOpen ? " sidebar-open" : ""}`} style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
             <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
-            <aside className="sidebar">
+            <aside className="sidebar" style={{ width: `var(--sidebar-width)` }}>
                 <div className="sidebar-logo">
                     <div className="logo-mark">M</div>
                     <span className="logo-text">microtask</span>
@@ -172,6 +213,11 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                 </div>
             </aside>
 
+            <div
+                className={`sidebar-resizer ${isResizing ? "is-resizing" : ""}`}
+                onMouseDown={startResizing}
+            />
+
             <main className="main">
                 <div className="topbar">
                     <div className="topbar-menu-btn" onClick={() => setSidebarOpen(v => !v)}>
@@ -204,6 +250,7 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                         </>
                     )}
                     <div className="topbar-actions">
+                        <ThemeToggle />
                         <div ref={profileRef} style={{ position: "relative" }}>
                             <div
                                 className="avatar avatar-sm"
@@ -215,8 +262,8 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                             {profileOpen && (
                                 <div style={{
                                     position: "absolute", right: 0, top: "calc(100% + 8px)", width: 220,
-                                    background: "#16191f", border: "1px solid var(--border)", borderRadius: "var(--radius)",
-                                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 1000, overflow: "hidden",
+                                    background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)",
+                                    boxShadow: "var(--shadow-lg)", zIndex: 1000, overflow: "hidden",
                                 }}>
                                     <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
                                         <div className="avatar" style={{ background: "#6366f1", width: 36, height: 36, fontSize: 14, flexShrink: 0 }}>{initials}</div>
