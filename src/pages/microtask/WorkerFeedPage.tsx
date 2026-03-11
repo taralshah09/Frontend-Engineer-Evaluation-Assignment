@@ -17,7 +17,9 @@ import {
     MdCloudUpload,
     MdCheck,
     MdArrowBack,
-    MdArrowForward
+    MdArrowForward,
+    MdViewModule,
+    MdViewList
 } from "react-icons/md";
 
 const TASK_TYPE_META = {
@@ -40,6 +42,9 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
     const [emailContent, setEmailContent] = useState("");
     const [screenshotB64, setScreenshotB64] = useState<string>("");
     const [submitted, setSubmitted] = useState(false);
+    const [viewMode, setViewMode] = useState<"card" | "inline">(() => {
+        return (localStorage.getItem("worker_view_mode") as "card" | "inline") || "card";
+    });
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -142,6 +147,24 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                         </div>
                     ))}
                 </div>
+
+                <div className="view-toggle-group">
+                    <button
+                        className={`view-toggle-btn ${viewMode === "card" ? "active" : ""}`}
+                        onClick={() => { setViewMode("card"); localStorage.setItem("worker_view_mode", "card"); }}
+                        title="Card View"
+                    >
+                        <MdViewModule size={18} />
+                    </button>
+                    <button
+                        className={`view-toggle-btn ${viewMode === "inline" ? "active" : ""}`}
+                        onClick={() => { setViewMode("inline"); localStorage.setItem("worker_view_mode", "inline"); }}
+                        title="Inline View"
+                    >
+                        <MdViewList size={18} />
+                    </button>
+                </div>
+
                 <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                     <div className="search-wrap">
                         <span className="search-icon" style={{ display: "flex", alignItems: "center" }}><MdSearch size={16} /></span>
@@ -179,46 +202,78 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                 ))}
             </div>
 
-            <div className="task-grid">
-                {filtered.map(task => {
-                    const meta = TASK_TYPE_META[task.task_type];
-                    const alreadyDone = hasAlreadySubmitted(task);
-                    const slotsLeft = Math.max(0, task.amount - task.approved_count);
-                    return (
-                        <div key={task.id} className={`task-card ${meta.cardClass}`} onClick={() => { setOpenTask(task); setSubmitMode(false); }}>
-                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-                                <TypeBadge type={task.task_type as any} />
-                                <span className="reward-chip">${task.reward.toFixed(2)}</span>
+            {viewMode === "card" ? (
+                <div className="task-grid">
+                    {filtered.map(task => {
+                        const meta = TASK_TYPE_META[task.task_type as keyof typeof TASK_TYPE_META];
+                        const alreadyDone = hasAlreadySubmitted(task);
+                        const slotsLeft = Math.max(0, task.amount - task.approved_count);
+                        return (
+                            <div key={task.id} className={`task-card ${meta.cardClass} animate-up`} onClick={() => { setOpenTask(task); setSubmitMode(false); }}>
+                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+                                    <TypeBadge type={task.task_type as any} />
+                                    <span className="reward-chip">${task.reward.toFixed(2)}</span>
+                                </div>
+                                <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 600, fontSize: 14, lineHeight: 1.4, marginBottom: 8 }}>{task.title}</div>
+                                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, lineHeight: 1.5 }}>
+                                    {slotsLeft} slot{slotsLeft !== 1 ? "s" : ""} remaining
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                    <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{task.campaign_id}</span>
+                                    {alreadyDone ? (
+                                        <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 4 }}>
+                                            Submitted <MdCheck size={14} />
+                                        </span>
+                                    ) : (
+                                        <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                            Submit <MdArrowForward size={14} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 600, fontSize: 14, lineHeight: 1.4, marginBottom: 8 }}>{task.title}</div>
-                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, lineHeight: 1.5 }}>
-                                {slotsLeft} slot{slotsLeft !== 1 ? "s" : ""} remaining
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="task-list-view">
+                    {filtered.map(task => {
+                        const alreadyDone = hasAlreadySubmitted(task);
+                        const slotsLeft = Math.max(0, task.amount - task.approved_count);
+                        return (
+                            <div key={task.id} className="task-row animate-up" onClick={() => { setOpenTask(task); setSubmitMode(false); }}>
+                                <div className="task-row-info">
+                                    <TypeBadge type={task.task_type as any} />
+                                    <div className="task-row-title">{task.title}</div>
+                                    <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{task.campaign_id}</span>
+                                </div>
+                                <div className="task-row-meta">
+                                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginRight: 8 }}>
+                                        {slotsLeft} slots left
+                                    </div>
+                                    <div className="task-row-reward">${task.reward.toFixed(2)}</div>
+                                    {alreadyDone ? (
+                                        <MdCheckCircle size={20} color="var(--emerald)" title="Submitted" />
+                                    ) : (
+                                        <button className="btn btn-primary btn-xs" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }}>
+                                            Submit
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{task.campaign_id}</span>
-                                {alreadyDone ? (
-                                    <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 4 }}>
-                                        Submitted <MdCheck size={14} />
-                                    </span>
-                                ) : (
-                                    <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                        Submit <MdArrowForward size={14} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
-                {filtered.length === 0 && (
-                    <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "48px 0", color: "var(--text-muted)" }}>
-                        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-                            <MdInbox size={48} color="var(--border)" />
-                        </div>
-                        <div style={{ fontWeight: 600 }}>No active tasks</div>
-                        <div style={{ fontSize: 13, marginTop: 4 }}>Check back soon for new tasks.</div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {filtered.length === 0 && (
+                <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "48px 0", color: "var(--text-muted)" }}>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                        <MdInbox size={48} color="var(--border)" />
                     </div>
-                )}
-            </div>
+                    <div style={{ fontWeight: 600 }}>No active tasks</div>
+                    <div style={{ fontSize: 13, marginTop: 4 }}>Check back soon for new tasks.</div>
+                </div>
+            )}
 
             {openTask && (
                 <div className="sheet-overlay" onClick={() => { setOpenTask(null); setSubmitMode(false); setPostUrl(""); setEmailContent(""); setScreenshotB64(""); }}>

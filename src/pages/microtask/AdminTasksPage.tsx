@@ -19,7 +19,9 @@ import {
     MdCheckCircle,
     MdCancel,
     MdClose,
-    MdArrowForward
+    MdArrowForward,
+    MdViewModule,
+    MdViewList
 } from "react-icons/md";
 
 interface AdminTasksPageProps {
@@ -35,6 +37,9 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
     const [filterStatus, setFilterStatus] = useState("all");
     const [selected, setSelected] = useState<string[]>([]);
     const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<"card" | "inline">(() => {
+        return (localStorage.getItem("admin_view_mode") as "card" | "inline") || "inline";
+    });
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "delete" } | null>(null);
 
     const showToast = (msg: string, type: "success" | "error" | "delete" = "success") => {
@@ -162,64 +167,119 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                     </div>
                 </div>
 
-                <div className="table-scroll">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style={{ width: 40 }}>
-                                    <div className={`checkbox ${selected.length === filtered.length && filtered.length > 0 ? "checked" : ""}`} onClick={toggleAll} />
-                                </th>
-                                <th>Task</th>
-                                <th>Type</th>
-                                <th>Campaign</th>
-                                <th>Reward</th>
-                                <th>Progress</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filtered.map(task => (
-                                <tr key={task.id} onClick={() => setOpenTaskId(task.id)}>
-                                    <td onClick={e => { e.stopPropagation(); toggleSelect(task.id); }}>
-                                        <div className={`checkbox ${selected.includes(task.id) ? "checked" : ""}`} />
-                                    </td>
-                                    <td>
-                                        <div style={{ fontWeight: 600, fontSize: 13.5, maxWidth: 280, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</div>
-                                    </td>
-                                    <td><TypeBadge type={task.task_type as any} /></td>
-                                    <td><span className="campaign-chip"><span />{task.campaign_id}</span></td>
-                                    <td><span className="reward-chip">${task.reward.toFixed(2)}</span></td>
-                                    <td style={{ minWidth: 160 }}>
-                                        <ProgressBar
-                                            value={task.approved_count}
-                                            max={task.amount}
-                                            color={task.approved_count / task.amount > 0.7 ? "#059669" : task.approved_count / task.amount > 0.3 ? "#d97706" : "#6366f1"}
-                                        />
-                                    </td>
-                                    <td><Badge status={task.status} /></td>
-                                    <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatDate(task.created_at)}</td>
-                                    <td onClick={e => e.stopPropagation()}>
-                                        <div style={{ display: "flex", gap: 4 }}>
-                                            <button className="btn btn-ghost btn-xs" onClick={() => setOpenTaskId(task.id)}>View</button>
-                                            <button className="btn btn-ghost btn-xs" onClick={() => onViewSubmissions(task.id)}>Submissions</button>
-                                            <button className="btn btn-ghost btn-xs" onClick={() => onEditTask?.(task.id)}>Edit</button>
-                                            <button
-                                                className="btn btn-xs"
-                                                style={{ color: "var(--rose)", background: "transparent" }}
-                                                onClick={() => handleDelete(task.id)}
-                                                disabled={deleteMutation.isPending}
-                                            >
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div style={{ padding: "0 20px 12px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+                    <div className="view-toggle-group">
+                        <button
+                            className={`view-toggle-btn ${viewMode === "card" ? "active" : ""}`}
+                            onClick={() => { setViewMode("card"); localStorage.setItem("admin_view_mode", "card"); }}
+                            title="Card View"
+                        >
+                            <MdViewModule size={18} />
+                        </button>
+                        <button
+                            className={`view-toggle-btn ${viewMode === "inline" ? "active" : ""}`}
+                            onClick={() => { setViewMode("inline"); localStorage.setItem("admin_view_mode", "inline"); }}
+                            title="Table View"
+                        >
+                            <MdViewList size={18} />
+                        </button>
+                    </div>
                 </div>
+
+                {viewMode === "inline" ? (
+                    <div className="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style={{ width: 40 }}>
+                                        <div className={`checkbox ${selected.length === filtered.length && filtered.length > 0 ? "checked" : ""}`} onClick={toggleAll} />
+                                    </th>
+                                    <th>Task</th>
+                                    <th>Type</th>
+                                    <th>Campaign</th>
+                                    <th>Reward</th>
+                                    <th>Progress</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filtered.map(task => (
+                                    <tr key={task.id} onClick={() => setOpenTaskId(task.id)}>
+                                        <td onClick={e => { e.stopPropagation(); toggleSelect(task.id); }}>
+                                            <div className={`checkbox ${selected.includes(task.id) ? "checked" : ""}`} />
+                                        </td>
+                                        <td>
+                                            <div style={{ fontWeight: 600, fontSize: 13.5, maxWidth: 280, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</div>
+                                        </td>
+                                        <td><TypeBadge type={task.task_type as any} /></td>
+                                        <td><span className="campaign-chip"><span />{task.campaign_id}</span></td>
+                                        <td><span className="reward-chip">${task.reward.toFixed(2)}</span></td>
+                                        <td style={{ minWidth: 160 }}>
+                                            <ProgressBar
+                                                value={task.approved_count}
+                                                max={task.amount}
+                                                color={task.approved_count / task.amount > 0.7 ? "#059669" : task.approved_count / task.amount > 0.3 ? "#d97706" : "#6366f1"}
+                                            />
+                                        </td>
+                                        <td><Badge status={task.status} /></td>
+                                        <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatDate(task.created_at)}</td>
+                                        <td onClick={e => e.stopPropagation()}>
+                                            <div style={{ display: "flex", gap: 4 }}>
+                                                <button className="btn btn-ghost btn-xs" onClick={() => setOpenTaskId(task.id)}>View</button>
+                                                <button className="btn btn-ghost btn-xs" onClick={() => onViewSubmissions(task.id)}>Submissions</button>
+                                                <button className="btn btn-ghost btn-xs" onClick={() => onEditTask?.(task.id)}>Edit</button>
+                                                <button
+                                                    className="btn btn-xs"
+                                                    style={{ color: "var(--rose)", background: "transparent" }}
+                                                    onClick={() => handleDelete(task.id)}
+                                                    disabled={deleteMutation.isPending}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="admin-task-grid" style={{ padding: 20 }}>
+                        {filtered.map(task => (
+                            <div key={task.id} className="admin-task-card animate-up" onClick={() => setOpenTaskId(task.id)}>
+                                <div className="admin-task-card-header">
+                                    <TypeBadge type={task.task_type as any} />
+                                    <Badge status={task.status} />
+                                </div>
+                                <div className="admin-task-card-body">
+                                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", height: 40 }}>{task.title}</div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                        <span className="campaign-chip"><span />{task.campaign_id}</span>
+                                        <span className="reward-chip">${task.reward.toFixed(2)}</span>
+                                    </div>
+                                    <div style={{ marginBottom: 4, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                                        <span style={{ color: "var(--text-muted)" }}>Progress</span>
+                                        <span style={{ fontWeight: 600 }}>{task.approved_count} / {task.amount}</span>
+                                    </div>
+                                    <ProgressBar
+                                        value={task.approved_count}
+                                        max={task.amount}
+                                        color={task.approved_count / task.amount > 0.7 ? "#059669" : task.approved_count / task.amount > 0.3 ? "#d97706" : "#6366f1"}
+                                    />
+                                </div>
+                                <div className="admin-task-card-footer">
+                                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{formatDate(task.created_at)}</div>
+                                    <div style={{ display: "flex", gap: 4 }}>
+                                        <button className="btn btn-ghost btn-xs" onClick={e => { e.stopPropagation(); onViewSubmissions(task.id); }}>Subs</button>
+                                        <button className="btn btn-ghost btn-xs" onClick={e => { e.stopPropagation(); onEditTask?.(task.id); }}>Edit</button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {filtered.length === 0 && (
                     <div className="empty-state">
