@@ -7,6 +7,18 @@ import {
 } from "@/features/hooks";
 import { Badge, TypeBadge } from "../../components/common/Badge";
 import type { Submission } from "@/libs/types";
+import {
+    MdSearch,
+    MdHourglassEmpty,
+    MdCheckCircle,
+    MdCancel,
+    MdVisibility,
+    MdLink,
+    MdInbox,
+    MdBlock,
+    MdClose,
+    MdCheck
+} from "react-icons/md";
 
 interface AdminSubmissionsPageProps {
     filterTaskId?: string;
@@ -16,11 +28,15 @@ interface AdminSubmissionsPageProps {
 export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminSubmissionsPageProps = {}) {
     const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected">("pending");
     const [openSub, setOpenSub] = useState<Submission | null>(null);
+    const [search, setSearch] = useState("");
     const [rejecting, setRejecting] = useState(false);
     const [rejectReason, setRejectReason] = useState("");
-    const [toast, setToast] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
-    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+    const showToast = (msg: string, type: "success" | "error" = "success") => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3000);
+    };
 
     const { data: allSubs = [], isLoading } = useSubmissions();
     const { data: tasks = [] } = useTasks();
@@ -39,6 +55,14 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
     const filtered = allSubs.filter(s => {
         if (s.status !== activeTab) return false;
         if (filterTaskId && s.task_id !== filterTaskId) return false;
+
+        if (search) {
+            const q = search.toLowerCase();
+            const taskTitle = taskMap[s.task_id]?.title.toLowerCase() || "";
+            const workerName = s.user_id.replace("user_", "").toLowerCase();
+            return taskTitle.includes(q) || workerName.includes(q);
+        }
+
         return true;
     });
 
@@ -59,29 +83,29 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
     const handleApprove = async (sub: Submission) => {
         try {
             await approveMutation.mutateAsync(sub.id);
-            showToast("✅ Submission approved!");
+            showToast("Submission approved!");
             setOpenSub(null);
         } catch {
-            showToast("❌ Failed to approve. Please try again.");
+            showToast("Failed to approve. Please try again.", "error");
         }
     };
 
     const handleReject = async (sub: Submission) => {
         try {
             await rejectMutation.mutateAsync({ id: sub.id, reason: rejectReason });
-            showToast("❌ Submission rejected.");
+            showToast("Submission rejected.", "error");
             setOpenSub(null);
             setRejecting(false);
             setRejectReason("");
         } catch {
-            showToast("❌ Failed to reject. Please try again.");
+            showToast("Failed to reject. Please try again.", "error");
         }
     };
 
     if (isLoading) {
         return (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14 }}>
-                ⏳ Loading submissions…
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14, gap: 8 }}>
+                <MdHourglassEmpty size={18} /> Loading submissions…
             </div>
         );
     }
@@ -96,13 +120,13 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                         border: "1px solid #c7d2fe", borderRadius: 99,
                         padding: "4px 12px", fontSize: 12.5, fontWeight: 600,
                     }}>
-                        🔗 Filtered by task: <strong>{taskMap[filterTaskId]?.title ?? filterTaskId}</strong>
+                        <MdLink size={14} /> Filtered by task: <strong>{taskMap[filterTaskId]?.title ?? filterTaskId}</strong>
                         {onClearTaskFilter && (
                             <button
                                 onClick={onClearTaskFilter}
                                 style={{ background: "none", border: "none", cursor: "pointer", color: "var(--indigo)", fontSize: 14, lineHeight: 1, padding: "0 0 0 4px", display: "flex" }}
                                 title="Clear filter"
-                            >✕</button>
+                            ><MdClose size={20} /></button>
                         )}
                     </span>
                 </div>
@@ -117,8 +141,14 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                     ))}
                 </div>
                 <div className="search-wrap" style={{ marginLeft: "auto" }}>
-                    <span className="search-icon">🔍</span>
-                    <input className="input input-sm" style={{ width: 220 }} placeholder="Search worker or task…" />
+                    <span className="search-icon" style={{ display: "flex", alignItems: "center" }}><MdSearch size={16} /></span>
+                    <input
+                        className="input input-sm"
+                        style={{ width: 220 }}
+                        placeholder="Search worker or task…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
                 </div>
                 <select className="select">
                     <option>All task types</option>
@@ -163,7 +193,9 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                     <td><TypeBadge type={sub.task_type as any} /></td>
                                     <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatDate(sub.submitted_at)}</td>
                                     <td>
-                                        <button className="btn btn-ghost btn-xs" onClick={e => { e.stopPropagation(); setOpenSub(sub); }}>👁 Preview</button>
+                                        <button className="btn btn-ghost btn-xs" onClick={e => { e.stopPropagation(); setOpenSub(sub); }}>
+                                            <MdVisibility size={14} style={{ marginRight: 4 }} /> Preview
+                                        </button>
                                     </td>
                                     <td><Badge status={sub.status} /></td>
                                     {activeTab === "rejected" && (
@@ -197,7 +229,9 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                 </table>
                 {filtered.length === 0 && (
                     <div className="empty-state">
-                        <div className="empty-icon">{activeTab === "pending" ? "📭" : activeTab === "approved" ? "✅" : "❌"}</div>
+                        <div className="empty-icon" style={{ display: "flex", justifyContent: "center" }}>
+                            {activeTab === "pending" ? <MdInbox size={36} color="var(--border)" /> : activeTab === "approved" ? <MdCheckCircle size={36} color="#059669" /> : <MdBlock size={36} color="var(--rose)" />}
+                        </div>
                         <div className="empty-title">No {activeTab} submissions</div>
                         <div className="empty-desc">{activeTab === "pending" ? "All caught up! No submissions waiting for review." : `No ${activeTab} submissions yet.`}</div>
                     </div>
@@ -212,12 +246,12 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                 <div className="avatar avatar-lg" style={{ background: getAvatarColor(openSub.user_id) }}>
                                     {getWorkerInitials(openSub.user_id)}
                                 </div>
-                                <div>
+                                <div style={{ minWidth: 0 }}>
                                     <div className="sheet-title">{openSub.user_id.replace("user_", "")}</div>
                                     <div className="sheet-subtitle">{formatDate(openSub.submitted_at)}</div>
                                 </div>
                             </div>
-                            <button className="btn btn-ghost btn-sm sheet-close" onClick={() => { setOpenSub(null); setRejecting(false); }}>✕</button>
+                            <button className="btn btn-ghost btn-sm sheet-close" onClick={() => { setOpenSub(null); setRejecting(false); }}><MdClose size={20} /></button>
                         </div>
                         <div className="sheet-body">
                             <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: 14, marginBottom: 20 }}>
@@ -234,6 +268,7 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                 <div className="detail-row">
                                     <span className="detail-label">Post URL</span>
                                     <a className="detail-value" href={(openSub as any).post_url} target="_blank" rel="noreferrer" style={{ color: "var(--indigo)", textDecoration: "none" }}>
+                                        <MdLink size={14} style={{ marginRight: 4 }} />
                                         {(openSub as any).post_url}
                                     </a>
                                 </div>
@@ -246,8 +281,8 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                             )}
                             <div style={{ marginBottom: 20 }}>
                                 <div className="form-label" style={{ marginBottom: 8 }}>Screenshot</div>
-                                <div className="screenshot-preview">
-                                    <img src={openSub.screenshot_url} alt="Evidence screenshot" style={{ maxWidth: "100%" }} />
+                                <div className="screenshot-preview" style={{ background: "var(--surface-2)", borderRadius: "var(--radius-sm)", padding: 12, border: "1px solid var(--border)" }}>
+                                    <img src={openSub.screenshot_url} alt="Evidence screenshot" style={{ maxWidth: "100%", borderRadius: "var(--radius-xs)" }} />
                                 </div>
                             </div>
 
@@ -275,10 +310,14 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                             className="btn btn-success"
                                             onClick={() => handleApprove(openSub)}
                                             disabled={approveMutation.isPending}
+                                            style={{ display: "flex", alignItems: "center", gap: 6 }}
                                         >
-                                            {approveMutation.isPending ? "⏳ Approving…" : "✓ Approve"}
+                                            {approveMutation.isPending ? <MdHourglassEmpty size={18} /> : <MdCheck size={18} />}
+                                            {approveMutation.isPending ? "Approving…" : "Approve"}
                                         </button>
-                                        <button className="btn btn-danger" onClick={() => setRejecting(true)}>✕ Reject</button>
+                                        <button className="btn btn-danger" onClick={() => setRejecting(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                            <MdClose size={18} /> Reject
+                                        </button>
                                     </>
                                 ) : (
                                     <>
@@ -286,8 +325,10 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                             className="btn btn-danger"
                                             onClick={() => handleReject(openSub)}
                                             disabled={rejectMutation.isPending || !rejectReason.trim()}
+                                            style={{ display: "flex", alignItems: "center", gap: 6 }}
                                         >
-                                            {rejectMutation.isPending ? "⏳ Rejecting…" : "Confirm Rejection"}
+                                            {rejectMutation.isPending ? <MdHourglassEmpty size={18} /> : null}
+                                            {rejectMutation.isPending ? "Rejecting…" : "Confirm Rejection"}
                                         </button>
                                         <button className="btn btn-outline" onClick={() => setRejecting(false)}>Cancel</button>
                                     </>
@@ -298,7 +339,14 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                 </div>
             )}
 
-            {toast && <div className="toast"><span className="toast-icon">{toast.startsWith("✅") ? "✅" : "❌"}</span>{toast}</div>}
+            {toast && (
+                <div className="toast">
+                    <span className="toast-icon" style={{ display: "flex", alignItems: "center" }}>
+                        {toast.type === "success" ? <MdCheckCircle size={18} /> : <MdCancel size={18} />}
+                    </span>
+                    {toast.msg}
+                </div>
+            )}
         </>
     );
 }

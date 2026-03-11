@@ -128,7 +128,7 @@ Create a post on your **Twitter/X** or **LinkedIn** account promoting our upcomi
 - The direct URL to your post
 - A screenshot of the post showing likes/impressions (taken within 24 hours)
 
-> ⚠️ Posts from private accounts or bot accounts will be automatically rejected.`,
+> Posts from private accounts or bot accounts will be automatically rejected.`,
         amount: 50,
         reward: 5.0,
         allow_multiple_submissions: false,

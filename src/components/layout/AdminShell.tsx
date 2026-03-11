@@ -5,6 +5,15 @@ import { AdminSubmissionsPage } from "@/pages/microtask/AdminSubmissionsPage";
 import { useSubmissions } from "@/features/hooks";
 import type { Session } from "@/libs/types";
 import { SEED_CAMPAIGNS } from "@/mock/seed";
+import {
+    MdFlashOn,
+    MdOutlineInbox,
+    MdEdit,
+    MdPerson,
+    MdLogout,
+    MdMenu,
+    MdExpandLess,
+} from "react-icons/md";
 
 interface AdminShellProps {
     session: Session;
@@ -24,7 +33,6 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
     const [filterTaskId, setFilterTaskId] = useState<string | null>(null);
     const profileRef = useRef<HTMLDivElement>(null);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
@@ -39,8 +47,8 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
     const pendingCount = pendingSubs?.length ?? 0;
 
     const navItems = [
-        { id: "tasks", icon: "⚡", label: "Tasks", badge: null as number | null },
-        { id: "submissions", icon: "📬", label: "Submissions", badge: pendingCount || null },
+        { id: "tasks", icon: <MdFlashOn size={17} />, label: "Tasks", badge: null as number | null },
+        { id: "submissions", icon: <MdOutlineInbox size={17} />, label: "Submissions", badge: pendingCount || null },
     ];
 
     const initials = session.username.slice(0, 2).toUpperCase();
@@ -109,7 +117,7 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
             <aside className="sidebar">
                 <div className="sidebar-logo">
                     <div className="logo-mark">M</div>
-                    <span className="logo-text">MicroTask</span>
+                    <span className="logo-text">microtask</span>
                     <span className="logo-badge">Admin</span>
                 </div>
 
@@ -121,13 +129,13 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                             className={`nav-item ${page === item.id && !composing && !activeCampaignId ? "active" : ""}`}
                             onClick={() => handleNavTo(item.id)}
                         >
-                            <span style={{ fontSize: 15 }}>{item.icon}</span>
+                            <span style={{ display: "flex", alignItems: "center" }}>{item.icon}</span>
                             <span>{item.label}</span>
                             {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
                         </div>
                     ))}
                     <div className={`nav-item ${composing ? "active" : ""}`} onClick={() => handleOpenComposer()}>
-                        <span style={{ fontSize: 15 }}>✏️</span>
+                        <span style={{ display: "flex", alignItems: "center" }}><MdEdit size={17} /></span>
                         <span>Task Composer</span>
                     </div>
                 </div>
@@ -157,14 +165,18 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                             <div className="user-name">{session.username}</div>
                             <div className="user-role">Administrator</div>
                         </div>
-                        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)" }}>▲</span>
+                        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", color: "var(--text-muted)" }}>
+                            <MdExpandLess size={16} />
+                        </span>
                     </div>
                 </div>
             </aside>
 
             <main className="main">
                 <div className="topbar">
-                    <div className="topbar-menu-btn" onClick={() => setSidebarOpen(v => !v)}>☰</div>
+                    <div className="topbar-menu-btn" onClick={() => setSidebarOpen(v => !v)}>
+                        <MdMenu size={20} />
+                    </div>
                     {composing ? (
                         <div className="breadcrumb">
                             <span style={{ cursor: "pointer", color: "var(--indigo)" }} onClick={() => setComposing(false)}>Tasks</span>
@@ -206,7 +218,6 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                                     background: "#16191f", border: "1px solid var(--border)", borderRadius: "var(--radius)",
                                     boxShadow: "0 8px 32px rgba(0,0,0,0.4)", zIndex: 1000, overflow: "hidden",
                                 }}>
-                                    {/* User info header */}
                                     <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
                                         <div className="avatar" style={{ background: "#6366f1", width: 36, height: 36, fontSize: 14, flexShrink: 0 }}>{initials}</div>
                                         <div>
@@ -222,7 +233,7 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                                             onMouseLeave={e => (e.currentTarget.style.background = "none")}
                                             onClick={() => { setProfileOpen(false); }}
                                         >
-                                            <span>👤</span> View Profile
+                                            <MdPerson size={16} /> View Profile
                                         </button>
                                         <button
                                             style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", color: "#fda4af", fontSize: 13, transition: "background 0.15s", textAlign: "left" }}
@@ -231,7 +242,7 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                                             onClick={handleLogout}
                                             disabled={loggingOut}
                                         >
-                                            <span>🚪</span> {loggingOut ? "Signing out…" : "Sign out"}
+                                            <MdLogout size={16} /> {loggingOut ? "Signing out…" : "Sign out"}
                                         </button>
                                     </div>
                                 </div>

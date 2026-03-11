@@ -2,11 +2,28 @@ import React, { useState, useRef } from "react";
 import { useTasks, useCreateSubmission, useSubmissions } from "@/features/hooks";
 import { TypeBadge } from "../../components/common/Badge";
 import type { Session, Task, SubmissionFormValues } from "@/libs/types";
+import {
+    MdCampaign,
+    MdEmail,
+    MdFavorite,
+    MdSearch,
+    MdInbox,
+    MdCheckCircle,
+    MdCancel,
+    MdAttachFile,
+    MdHourglassEmpty,
+    MdCelebration,
+    MdClose,
+    MdCloudUpload,
+    MdCheck,
+    MdArrowBack,
+    MdArrowForward
+} from "react-icons/md";
 
 const TASK_TYPE_META = {
-    social_media_posting: { label: "Social Posting", icon: "📢", cardClass: "social" },
-    email_sending: { label: "Email Sending", icon: "✉️", cardClass: "email" },
-    social_media_liking: { label: "Social Liking", icon: "❤️", cardClass: "like" },
+    social_media_posting: { label: "Social Posting", icon: <MdCampaign size={16} />, cardClass: "social" },
+    email_sending: { label: "Email Sending", icon: <MdEmail size={16} />, cardClass: "email" },
+    social_media_liking: { label: "Social Liking", icon: <MdFavorite size={16} />, cardClass: "like" },
 };
 
 interface WorkerFeedPageProps {
@@ -16,16 +33,20 @@ interface WorkerFeedPageProps {
 export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
     const [activeTab, setActiveTab] = useState("all");
     const [sort, setSort] = useState("latest");
+    const [search, setSearch] = useState("");
     const [openTask, setOpenTask] = useState<Task | null>(null);
     const [submitMode, setSubmitMode] = useState(false);
     const [postUrl, setPostUrl] = useState("");
     const [emailContent, setEmailContent] = useState("");
     const [screenshotB64, setScreenshotB64] = useState<string>("");
     const [submitted, setSubmitted] = useState(false);
-    const [toast, setToast] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
-    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+    const showToast = (msg: string, type: "success" | "error" = "success") => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3000);
+    };
 
     const { data: tasks = [], isLoading } = useTasks({ status: "active" });
     const { data: mySubs = [] } = useSubmissions({ user_id: session.userId });
@@ -37,6 +58,11 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
             if (activeTab === "email") return t.task_type === "email_sending";
             if (activeTab === "liking") return t.task_type === "social_media_liking";
             return true;
+        })
+        .filter(t => {
+            if (!search) return true;
+            const q = search.toLowerCase();
+            return t.title.toLowerCase().includes(q) || t.campaign_id.toLowerCase().includes(q);
         })
         .sort((a, b) => sort === "reward" ? b.reward - a.reward : new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -57,14 +83,14 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
 
     const handleSubmit = async () => {
         if (!openTask) return;
-        if (!screenshotB64) { showToast("❌ Please upload a screenshot as evidence."); return; }
+        if (!screenshotB64) { showToast("Please upload a screenshot as evidence.", "error"); return; }
 
         let values: SubmissionFormValues;
         if (openTask.task_type === "social_media_posting" || openTask.task_type === "social_media_liking") {
-            if (!postUrl.trim()) { showToast("❌ Please enter the post URL."); return; }
+            if (!postUrl.trim()) { showToast("Please enter the post URL.", "error"); return; }
             values = { task_type: openTask.task_type, post_url: postUrl.trim(), screenshot_url: screenshotB64 };
         } else {
-            if (!emailContent.trim()) { showToast("❌ Please paste your email content."); return; }
+            if (!emailContent.trim()) { showToast("Please paste your email content.", "error"); return; }
             values = { task_type: "email_sending", email_content: emailContent.trim(), screenshot_url: screenshotB64 };
         }
 
@@ -78,7 +104,7 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                 setPostUrl(""); setEmailContent(""); setScreenshotB64("");
             }, 2500);
         } catch (err: unknown) {
-            showToast(`❌ ${err instanceof Error ? err.message : "Failed to submit. Please try again."}`);
+            showToast(err instanceof Error ? err.message : "Failed to submit. Please try again.", "error");
         }
     };
 
@@ -89,8 +115,8 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
 
     if (isLoading) {
         return (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14 }}>
-                ⏳ Loading tasks…
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14, gap: 8 }}>
+                <MdHourglassEmpty size={18} /> Loading tasks…
             </div>
         );
     }
@@ -100,20 +126,32 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
                 <div className="tabs">
                     {[
-                        { id: "all", label: "All Tasks" },
-                        { id: "posting", label: "📢 Posting" },
-                        { id: "email", label: "✉️ Email" },
-                        { id: "liking", label: "❤️ Liking" },
+                        { id: "all", label: "All Tasks", icon: null },
+                        { id: "posting", label: "Posting", icon: <MdCampaign size={16} /> },
+                        { id: "email", label: "Email", icon: <MdEmail size={16} /> },
+                        { id: "liking", label: "Liking", icon: <MdFavorite size={16} /> },
                     ].map(tab => (
-                        <div key={tab.id} className={`tab ${activeTab === tab.id ? "active" : ""}`} onClick={() => setActiveTab(tab.id)}>
+                        <div
+                            key={tab.id}
+                            className={`tab ${activeTab === tab.id ? "active" : ""}`}
+                            onClick={() => setActiveTab(tab.id)}
+                            style={{ display: "flex", alignItems: "center", gap: 6 }}
+                        >
+                            {tab.icon && <span style={{ display: "flex" }}>{tab.icon}</span>}
                             {tab.label}
                         </div>
                     ))}
                 </div>
                 <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                     <div className="search-wrap">
-                        <span className="search-icon">🔍</span>
-                        <input className="input input-sm" style={{ width: 180 }} placeholder="Search tasks…" />
+                        <span className="search-icon" style={{ display: "flex", alignItems: "center" }}><MdSearch size={16} /></span>
+                        <input
+                            className="input input-sm"
+                            style={{ width: 180 }}
+                            placeholder="Search tasks…"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
                     </div>
                     <select className="select" value={sort} onChange={e => setSort(e.target.value)}>
                         <option value="latest">Latest first</option>
@@ -159,10 +197,12 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                 <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{task.campaign_id}</span>
                                 {alreadyDone ? (
-                                    <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Submitted ✓</span>
+                                    <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 4 }}>
+                                        Submitted <MdCheck size={14} />
+                                    </span>
                                 ) : (
-                                    <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }}>
-                                        Submit →
+                                    <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                        Submit <MdArrowForward size={14} />
                                     </button>
                                 )}
                             </div>
@@ -171,7 +211,9 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                 })}
                 {filtered.length === 0 && (
                     <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "48px 0", color: "var(--text-muted)" }}>
-                        <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
+                        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                            <MdInbox size={48} color="var(--border)" />
+                        </div>
                         <div style={{ fontWeight: 600 }}>No active tasks</div>
                         <div style={{ fontSize: 13, marginTop: 4 }}>Check back soon for new tasks.</div>
                     </div>
@@ -188,7 +230,7 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                             </div>
                             <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginLeft: "auto" }}>
                                 <span className="reward-chip" style={{ fontSize: 16 }}>${openTask.reward.toFixed(2)}</span>
-                                <button className="btn btn-ghost btn-sm" onClick={() => { setOpenTask(null); setSubmitMode(false); }}>✕</button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => { setOpenTask(null); setSubmitMode(false); }}><MdClose size={20} /></button>
                             </div>
                         </div>
                         <div className="sheet-body">
@@ -211,9 +253,9 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                     <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 16, marginBottom: 16 }}>
                                         <div style={{ fontFamily: "monospace", fontSize: 13, color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
                                             {openTask.details || (
-                                                openTask.task_type === "social_media_posting" ? "📢 Post on Twitter/X or LinkedIn\n• Use campaign hashtags\n• Tag @MicroTaskIO\n• Post must be public\n\nSubmit: Post URL + Screenshot"
-                                                    : openTask.task_type === "email_sending" ? "✉️ Send email to 5+ recipients\n• Include key features\n• Add sign-up CTA link\n• Personalise each email\n\nSubmit: Full email content + Screenshot"
-                                                        : "❤️ Like the specified post\n• Use personal account only\n• Account 3+ months old\n• 50+ followers required\n\nSubmit: Profile URL + Screenshot"
+                                                openTask.task_type === "social_media_posting" ? "Post on Twitter/X or LinkedIn\n• Use campaign hashtags\n• Tag @MicroTaskIO\n• Post must be public\n\nSubmit: Post URL + Screenshot"
+                                                    : openTask.task_type === "email_sending" ? "Send email to 5+ recipients\n• Include key features\n• Add sign-up CTA link\n• Personalise each email\n\nSubmit: Full email content + Screenshot"
+                                                        : "Like the specified post\n• Use personal account only\n• Account 3+ months old\n• 50+ followers required\n\nSubmit: Profile URL + Screenshot"
                                             )}
                                         </div>
                                     </div>
@@ -222,7 +264,9 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                 <>
                                     {submitted ? (
                                         <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                                            <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+                                            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+                                                <MdCelebration size={56} color="var(--indigo)" />
+                                            </div>
                                             <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Submitted!</div>
                                             <div style={{ color: "var(--text-muted)", fontSize: 14 }}>Your submission is pending review. You'll earn ${openTask.reward.toFixed(2)} once approved.</div>
                                         </div>
@@ -249,13 +293,17 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                                 >
                                                     {screenshotB64 ? (
                                                         <>
-                                                            <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
+                                                            <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                                                                <MdCheckCircle size={32} color="var(--indigo)" />
+                                                            </div>
                                                             <div style={{ fontWeight: 600, fontSize: 13, color: "var(--indigo)" }}>Screenshot uploaded</div>
                                                             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>Click to change</div>
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <div style={{ fontSize: 28, marginBottom: 8 }}>📎</div>
+                                                            <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                                                                <MdAttachFile size={32} color="var(--text-muted)" />
+                                                            </div>
                                                             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Click to upload or drag &amp; drop</div>
                                                             <div style={{ fontSize: 12, color: "var(--text-muted)" }}>PNG, JPG up to 5MB</div>
                                                         </>
@@ -278,9 +326,13 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                             {!submitMode && !submitted && (
                                 <>
                                     {hasAlreadySubmitted(openTask) ? (
-                                        <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0" }}>✓ You have already submitted this task.</div>
+                                        <div style={{ fontSize: 13, color: "var(--text-muted)", padding: "8px 0", display: "flex", alignItems: "center", gap: 6 }}>
+                                            <MdCheck size={16} /> You have already submitted this task.
+                                        </div>
                                     ) : (
-                                        <button className="btn btn-primary" onClick={() => setSubmitMode(true)}>Submit This Task →</button>
+                                        <button className="btn btn-primary" onClick={() => setSubmitMode(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                            Submit This Task <MdArrowForward size={16} />
+                                        </button>
                                     )}
                                     <button className="btn btn-outline" onClick={() => setOpenTask(null)}>Close</button>
                                 </>
@@ -292,9 +344,11 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                         onClick={handleSubmit}
                                         disabled={createSubmission.isPending}
                                     >
-                                        {createSubmission.isPending ? "⏳ Submitting…" : "📤 Submit for Review"}
+                                        {createSubmission.isPending ? <><MdHourglassEmpty size={18} /> Submitting…</> : <><MdCloudUpload size={18} /> Submit for Review</>}
                                     </button>
-                                    <button className="btn btn-outline" onClick={() => setSubmitMode(false)}>← Back to Details</button>
+                                    <button className="btn btn-outline" onClick={() => setSubmitMode(false)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                        <MdArrowBack size={16} /> Back to Details
+                                    </button>
                                 </>
                             )}
                         </div>
@@ -302,7 +356,14 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                 </div>
             )}
 
-            {toast && <div className="toast"><span className="toast-icon">{toast.startsWith("✅") ? "✅" : "❌"}</span>{toast}</div>}
+            {toast && (
+                <div className="toast">
+                    <span className="toast-icon" style={{ display: "flex", alignItems: "center" }}>
+                        {toast.type === "success" ? <MdCheckCircle size={18} /> : <MdCancel size={18} />}
+                    </span>
+                    {toast.msg}
+                </div>
+            )}
         </>
     );
 }

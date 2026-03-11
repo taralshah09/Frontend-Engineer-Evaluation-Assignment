@@ -7,6 +7,20 @@ import {
 } from "@/features/hooks";
 import { Badge, TypeBadge } from "../../components/common/Badge";
 import { ProgressBar } from "../../components/common/ProgressBar";
+import {
+    MdFlashOn,
+    MdOutlineInbox,
+    MdHourglassEmpty,
+    MdAttachMoney,
+    MdSearch,
+    MdEdit,
+    MdDelete,
+    MdAssignment,
+    MdCheckCircle,
+    MdCancel,
+    MdClose,
+    MdArrowForward
+} from "react-icons/md";
 
 interface AdminTasksPageProps {
     onOpenComposer: () => void;
@@ -21,9 +35,12 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
     const [filterStatus, setFilterStatus] = useState("all");
     const [selected, setSelected] = useState<string[]>([]);
     const [openTaskId, setOpenTaskId] = useState<string | null>(null);
-    const [toast, setToast] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "delete" } | null>(null);
 
-    const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+    const showToast = (msg: string, type: "success" | "error" | "delete" = "success") => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3000);
+    };
 
     const { data: tasks = [], isLoading } = useTasks();
     const { data: allSubs = [] } = useSubmissions();
@@ -68,9 +85,9 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
         try {
             await deleteMutation.mutateAsync(id);
             setOpenTaskId(null);
-            showToast("🗑️ Task deleted.");
+            showToast("Task deleted.", "delete");
         } catch {
-            showToast("❌ Failed to delete task.");
+            showToast("Failed to delete task.", "error");
         }
     };
 
@@ -80,14 +97,14 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
             await updateMutation.mutateAsync({ id, values: { status: newStatus } });
             showToast(`Task ${newStatus === "paused" ? "paused" : "resumed"}.`);
         } catch {
-            showToast("❌ Failed to update task.");
+            showToast("Failed to update task.", "error");
         }
     };
 
     if (isLoading) {
         return (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14 }}>
-                ⏳ Loading tasks…
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14, gap: 8 }}>
+                <MdHourglassEmpty size={18} /> Loading tasks…
             </div>
         );
     }
@@ -96,14 +113,14 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
         <>
             <div className="stats-grid">
                 {[
-                    { label: "Active Tasks", value: String(activeTasks), delta: `${campaignTasks.length} total${campaignId ? " in campaign" : ""}`, dir: "up", icon: "⚡", bg: "#eef2ff", ic: "#6366f1" },
-                    { label: "Total Submissions", value: String(totalSubs), delta: campaignId ? "in this campaign" : "across all tasks", dir: "up", icon: "📬", bg: "#ecfdf5", ic: "#059669" },
-                    { label: "Pending Review", value: String(pendingSubsCount), delta: pendingSubsCount > 0 ? "Needs attention" : "All clear", dir: pendingSubsCount > 0 ? "down" : "up", icon: "⏳", bg: "#fef3c7", ic: "#d97706" },
-                    { label: "Rewards Paid", value: `$${rewardsPaid.toFixed(2)}`, delta: campaignId ? "in this campaign" : "total approved", dir: "up", icon: "💰", bg: "#f0fdf4", ic: "#16a34a" },
+                    { label: "Active Tasks", value: String(activeTasks), delta: `${campaignTasks.length} total${campaignId ? " in campaign" : ""}`, dir: "up", icon: <MdFlashOn size={20} />, bg: "#eef2ff", ic: "#6366f1" },
+                    { label: "Total Submissions", value: String(totalSubs), delta: campaignId ? "in this campaign" : "across all tasks", dir: "up", icon: <MdOutlineInbox size={20} />, bg: "#ecfdf5", ic: "#059669" },
+                    { label: "Pending Review", value: String(pendingSubsCount), delta: pendingSubsCount > 0 ? "Needs attention" : "All clear", dir: pendingSubsCount > 0 ? "down" : "up", icon: <MdHourglassEmpty size={20} />, bg: "#fef3c7", ic: "#d97706" },
+                    { label: "Rewards Paid", value: `$${rewardsPaid.toFixed(2)}`, delta: campaignId ? "in this campaign" : "total approved", dir: "up", icon: <MdAttachMoney size={20} />, bg: "#f0fdf4", ic: "#16a34a" },
                 ].map(s => (
                     <div key={s.label} className="stat-card">
-                        <div className="stat-icon-wrap" style={{ background: s.bg }}>
-                            <span style={{ fontSize: 18 }}>{s.icon}</span>
+                        <div className="stat-icon-wrap" style={{ background: s.bg, color: s.ic, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {s.icon}
                         </div>
                         <div className="stat-label">{s.label}</div>
                         <div className="stat-value">{s.value}</div>
@@ -121,7 +138,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                     )}
                     <div className="table-actions">
                         <div className="search-wrap">
-                            <span className="search-icon">🔍</span>
+                            <span className="search-icon" style={{ display: "flex", alignItems: "center" }}><MdSearch size={16} /></span>
                             <input className="input input-sm" style={{ width: 200 }} placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)} />
                         </div>
                         <select className="select" value={filterType} onChange={e => setFilterType(e.target.value)}>
@@ -136,7 +153,11 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                             <option value="completed">Completed</option>
                             <option value="paused">Paused</option>
                         </select>
-                        {selected.length > 0 && <button className="btn btn-outline btn-sm">✏️ Bulk Edit</button>}
+                        {selected.length > 0 && (
+                            <button className="btn btn-outline btn-sm" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <MdEdit size={14} /> Bulk Edit
+                            </button>
+                        )}
                         <button className="btn btn-primary btn-sm" onClick={onOpenComposer}>+ New Task</button>
                     </div>
                 </div>
@@ -202,7 +223,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
 
                 {filtered.length === 0 && (
                     <div className="empty-state">
-                        <div className="empty-icon">📋</div>
+                        <div className="empty-icon" style={{ display: "flex", justifyContent: "center" }}><MdAssignment size={36} /></div>
                         <div className="empty-title">No tasks found</div>
                         <div className="empty-desc">Try adjusting your filters or create a new task.</div>
                     </div>
@@ -221,7 +242,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                     <Badge status={openTask.status} />
                                 </div>
                             </div>
-                            <button className="btn btn-ghost btn-sm sheet-close" onClick={() => setOpenTaskId(null)}>✕</button>
+                            <button className="btn btn-ghost btn-sm sheet-close" onClick={() => setOpenTaskId(null)}><MdClose size={20} /></button>
                         </div>
                         <div className="sheet-body">
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
@@ -260,9 +281,9 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                             <div style={{ marginTop: 16 }}>
                                 <button
                                     className="btn btn-outline"
-                                    style={{ width: "100%", justifyContent: "center" }}
+                                    style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center" }}
                                     onClick={() => { setOpenTaskId(null); onViewSubmissions(openTask.id); }}
-                                >View all submissions →</button>
+                                >View all submissions <MdArrowForward size={16} /></button>
                             </div>
                         </div>
                         <div className="sheet-footer">
@@ -287,7 +308,14 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                 </div>
             )}
 
-            {toast && <div className="toast"><span className="toast-icon">{toast.startsWith("🗑️") ? "🗑️" : toast.startsWith("❌") ? "❌" : "✅"}</span>{toast}</div>}
+            {toast && (
+                <div className="toast">
+                    <span className="toast-icon" style={{ display: "flex", alignItems: "center" }}>
+                        {toast.type === "delete" ? <MdDelete size={16} /> : toast.type === "error" ? <MdCancel size={16} /> : <MdCheckCircle size={16} />}
+                    </span>
+                    {toast.msg}
+                </div>
+            )}
         </>
     );
 }

@@ -3,6 +3,13 @@ import { WorkerFeedPage } from "@/pages/microtask/WorkerFeedPage";
 import { useSubmissions } from "@/features/hooks";
 import { userStore } from "@/storage";
 import type { Session, User } from "@/libs/types";
+import {
+    MdFlashOn,
+    MdPerson,
+    MdLogout,
+    MdMenu,
+    MdExpandLess,
+} from "react-icons/md";
 
 interface WorkerShellProps {
     session: Session;
@@ -36,8 +43,8 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
     }, []);
 
     const navItems = [
-        { id: "feed", icon: "⚡", label: "Tasks" },
-        { id: "profile", icon: "👤", label: "Profile" },
+        { id: "feed", icon: <MdFlashOn size={17} />, label: "Tasks" },
+        { id: "profile", icon: <MdPerson size={17} />, label: "Profile" },
     ];
 
     const initials = session.username.slice(0, 2).toUpperCase();
@@ -59,7 +66,7 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
             <aside className="sidebar">
                 <div className="sidebar-logo">
                     <div className="logo-mark">M</div>
-                    <span className="logo-text">MicroTask</span>
+                    <span className="logo-text">microtask</span>
                     <span className="logo-badge" style={{ background: "#059669" }}>Worker</span>
                 </div>
 
@@ -67,7 +74,7 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                     <div className="sidebar-section-label">Navigation</div>
                     {navItems.map(item => (
                         <div key={item.id} className={`nav-item ${page === item.id ? "active" : ""}`} onClick={() => setPage(item.id)}>
-                            <span style={{ fontSize: 15 }}>{item.icon}</span>
+                            <span style={{ display: "flex", alignItems: "center" }}>{item.icon}</span>
                             <span>{item.label}</span>
                         </div>
                     ))}
@@ -86,14 +93,18 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                             <div className="user-name">{session.username}</div>
                             <div className="user-role">Worker</div>
                         </div>
-                        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)" }}>▲</span>
+                        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", color: "var(--text-muted)" }}>
+                            <MdExpandLess size={16} />
+                        </span>
                     </div>
                 </div>
             </aside>
 
             <main className="main">
                 <div className="topbar">
-                    <div className="topbar-menu-btn" onClick={() => setSidebarOpen(v => !v)}>☰</div>
+                    <div className="topbar-menu-btn" onClick={() => setSidebarOpen(v => !v)}>
+                        <MdMenu size={20} />
+                    </div>
                     <span className="topbar-title">{page === "feed" ? "Tasks Feed" : "My Profile"}</span>
                     <div className="topbar-sep" />
                     <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
@@ -139,7 +150,7 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                                             onMouseLeave={e => (e.currentTarget.style.background = "none")}
                                             onClick={() => { setProfileOpen(false); setPage("profile"); }}
                                         >
-                                            <span>👤</span> View Profile
+                                            <MdPerson size={16} /> View Profile
                                         </button>
                                         <button
                                             style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: "none", border: "none", cursor: "pointer", color: "#fda4af", fontSize: 13, transition: "background 0.15s", textAlign: "left" }}
@@ -148,7 +159,7 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                                             onClick={handleLogout}
                                             disabled={loggingOut}
                                         >
-                                            <span>🚪</span> {loggingOut ? "Signing out…" : "Sign out"}
+                                            <MdLogout size={16} /> {loggingOut ? "Signing out…" : "Sign out"}
                                         </button>
                                     </div>
                                 </div>
@@ -200,11 +211,11 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                             <div style={{ marginTop: 24 }}>
                                 <button
                                     className="btn btn-danger"
-                                    style={{ justifyContent: "center" }}
+                                    style={{ justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}
                                     onClick={handleLogout}
                                     disabled={loggingOut}
                                 >
-                                    🚪 {loggingOut ? "Signing out…" : "Sign out"}
+                                    <MdLogout size={16} /> {loggingOut ? "Signing out…" : "Sign out"}
                                 </button>
                             </div>
                         </div>

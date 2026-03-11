@@ -1,5 +1,6 @@
 import React from "react";
 import { TASK_TYPE_META } from "../../data/microtaskData";
+import { MdCampaign, MdEmail, MdFavorite } from "react-icons/md";
 
 interface BadgeProps {
     status: string;
@@ -24,5 +25,13 @@ interface TypeBadgeProps {
 
 export function TypeBadge({ type }: TypeBadgeProps) {
     const meta = TASK_TYPE_META[type];
-    return <span className={`badge ${meta.color}`}>{meta.icon} {meta.label}</span>;
+    const Icon = type === "social_media_posting" ? MdCampaign
+        : type === "email_sending" ? MdEmail
+            : MdFavorite;
+
+    return (
+        <span className={`badge ${meta.color}`} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Icon size={14} /> {meta.label}
+        </span>
+    );
 }

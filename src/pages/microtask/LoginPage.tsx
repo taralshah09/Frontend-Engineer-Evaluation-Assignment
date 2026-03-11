@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { MdArrowForward } from "react-icons/md";
 
 interface LoginPageProps {
     onLogin: (username: string, password: string) => void;
@@ -51,8 +52,8 @@ export function LoginPage({ onLogin, loading = false, error = "" }: LoginPagePro
 
                 <div className="login-hint" style={{ marginTop: 16 }}>
                     <div style={{ fontWeight: 600, color: "#4b5568", marginBottom: 6, fontSize: 11 }}>DEMO CREDENTIALS</div>
-                    <div>Admin → <code style={{ color: "#818cf8" }}>admin / admin</code></div>
-                    <div>Worker → any username + any password</div>
+                    <div>Admin <MdArrowForward size={14} style={{ verticalAlign: "middle" }} /> <code style={{ color: "#818cf8" }}>admin / admin</code></div>
+                    <div>Worker <MdArrowForward size={14} style={{ verticalAlign: "middle" }} /> any username + any password</div>
                 </div>
             </div>
         </div>
