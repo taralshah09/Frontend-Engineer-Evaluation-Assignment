@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { useQueryState } from "nuqs";
 import { useTasks, useCreateSubmission, useSubmissions } from "@/features/hooks";
 import { TypeBadge } from "../../components/common/Badge";
 import type { Session, Task, SubmissionFormValues } from "@/libs/types";
@@ -35,7 +36,7 @@ interface WorkerFeedPageProps {
 export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
     const [activeTab, setActiveTab] = useState("all");
     const [sort, setSort] = useState("latest");
-    const [search, setSearch] = useState("");
+    const [search, setSearch] = useQueryState("search", { defaultValue: "", shallow: false });
     const [openTask, setOpenTask] = useState<Task | null>(null);
     const [submitMode, setSubmitMode] = useState(false);
     const [postUrl, setPostUrl] = useState("");

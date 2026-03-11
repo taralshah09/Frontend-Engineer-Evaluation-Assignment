@@ -1,8 +1,10 @@
+"use client";
+
 import React, { useState, useRef, useEffect } from "react";
 import { TaskComposerPage } from "@/pages/microtask/TaskComposerPage";
 import { AdminTasksPage } from "@/pages/microtask/AdminTasksPage";
 import { AdminSubmissionsPage } from "@/pages/microtask/AdminSubmissionsPage";
-import { useSubmissions } from "@/features/hooks";
+import { useSubmissions, useCreateCampaign } from "@/features/hooks";
 import type { Session } from "@/libs/types";
 import { SEED_CAMPAIGNS } from "@/mock/seed";
 import {
@@ -13,6 +15,7 @@ import {
     MdLogout,
     MdMenu,
     MdExpandLess,
+    MdAdd,
 } from "react-icons/md";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 
@@ -32,6 +35,9 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
     const [filterTaskId, setFilterTaskId] = useState<string | null>(null);
+    const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+    const [newCampaignName, setNewCampaignName] = useState("");
+    const createCampaignMutation = useCreateCampaign();
     const profileRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -197,6 +203,49 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                             <span style={{ fontSize: 12.5 }}>{c.name}</span>
                         </div>
                     ))}
+                    {isCreatingCampaign ? (
+                        <div style={{ padding: "8px 10px", background: "var(--surface-2)", borderRadius: "var(--radius-sm)", margin: "4px 0" }}>
+                            <input
+                                autoFocus
+                                className="input input-sm"
+                                placeholder="Campaign name..."
+                                value={newCampaignName}
+                                onChange={e => setNewCampaignName(e.target.value)}
+                                onKeyDown={async e => {
+                                    if (e.key === "Enter" && newCampaignName.trim()) {
+                                        await createCampaignMutation.mutateAsync({ name: newCampaignName.trim() });
+                                        setNewCampaignName("");
+                                        setIsCreatingCampaign(false);
+                                    }
+                                    if (e.key === "Escape") setIsCreatingCampaign(false);
+                                }}
+                                style={{ width: "100%", fontSize: 12 }}
+                            />
+                            <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                                <button
+                                    className="btn btn-primary btn-xs"
+                                    style={{ flex: 1, fontSize: 10, padding: "2px 4px" }}
+                                    onClick={async () => {
+                                        if (newCampaignName.trim()) {
+                                            await createCampaignMutation.mutateAsync({ name: newCampaignName.trim() });
+                                            setNewCampaignName("");
+                                            setIsCreatingCampaign(false);
+                                        }
+                                    }}
+                                >Save</button>
+                                <button
+                                    className="btn btn-ghost btn-xs"
+                                    style={{ flex: 1, fontSize: 10, padding: "2px 4px" }}
+                                    onClick={() => setIsCreatingCampaign(false)}
+                                >Cancel</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="nav-item" onClick={() => setIsCreatingCampaign(true)} style={{ color: "var(--indigo)", opacity: 0.8 }}>
+                            <MdAdd size={16} />
+                            <span style={{ fontSize: 12.5, fontWeight: 600 }}>New Campaign</span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="sidebar-footer">

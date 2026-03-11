@@ -14,6 +14,7 @@ import {
     MdLink,
     MdAttachFile
 } from "react-icons/md";
+import { LexicalEditor } from "@/components/common/LexicalEditor";
 
 interface TaskComposerPageProps {
     onBack: () => void;
@@ -142,12 +143,9 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
                                     ))}
                                     <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: "auto", padding: "3px 0" }}>Markdown supported</span>
                                 </div>
-                                <textarea
-                                    className="input"
-                                    style={{ border: "none", borderRadius: 0, minHeight: 160, fontFamily: "monospace", fontSize: 13 }}
-                                    placeholder={"## Instructions\n\nWrite detailed instructions for workers here. Markdown is supported."}
-                                    value={details}
-                                    onChange={e => setDetails(e.target.value)}
+                                <LexicalEditor
+                                    initialValue={details}
+                                    onChange={setDetails}
                                 />
                             </div>
                         </div>

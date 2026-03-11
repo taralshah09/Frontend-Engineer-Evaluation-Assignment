@@ -5,6 +5,7 @@ import {
     useRejectSubmission,
     useTasks,
 } from "@/features/hooks";
+import { useQueryState } from "nuqs";
 import { Badge, TypeBadge } from "../../components/common/Badge";
 import type { Submission } from "@/libs/types";
 import {
@@ -26,9 +27,14 @@ interface AdminSubmissionsPageProps {
 }
 
 export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminSubmissionsPageProps = {}) {
-    const [activeTab, setActiveTab] = useState<"pending" | "approved" | "rejected">("pending");
+    const [activeTab, setActiveTab] = useQueryState<"pending" | "approved" | "rejected">("tab", {
+        defaultValue: "pending",
+        shallow: false,
+        parse: (value) => (value as "pending" | "approved" | "rejected") || "pending",
+        serialize: (value) => value
+    });
     const [openSub, setOpenSub] = useState<Submission | null>(null);
-    const [search, setSearch] = useState("");
+    const [search, setSearch] = useQueryState("search", { defaultValue: "", shallow: false });
     const [rejecting, setRejecting] = useState(false);
     const [rejectReason, setRejectReason] = useState("");
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -291,13 +297,26 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                     <div className="form-label" style={{ color: "var(--rose)", marginBottom: 8 }}>Rejection Reason</div>
                                     {openSub.status === "rejected"
                                         ? <p style={{ fontSize: 13, color: "#9f1239" }}>{"rejection_reason" in openSub ? openSub.rejection_reason : ""}</p>
-                                        : <textarea
-                                            className="input"
-                                            rows={3}
-                                            placeholder="Explain why this submission is being rejected…"
-                                            value={rejectReason}
-                                            onChange={e => setRejectReason(e.target.value)}
-                                        />
+                                        : <>
+                                            <textarea
+                                                className="input"
+                                                rows={3}
+                                                placeholder="Explain why this submission is being rejected…"
+                                                value={rejectReason}
+                                                onChange={e => setRejectReason(e.target.value)}
+                                            />
+                                            <div style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                alignItems: "center",
+                                                marginTop: 6,
+                                                fontSize: 11,
+                                                color: rejectReason.trim().length < 10 ? "var(--rose)" : "var(--text-muted)"
+                                            }}>
+                                                <span>Minimum 10 characters required</span>
+                                                <span>{rejectReason.trim().length} characters</span>
+                                            </div>
+                                        </>
                                     }
                                 </div>
                             )}
@@ -324,7 +343,7 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                         <button
                                             className="btn btn-danger"
                                             onClick={() => handleReject(openSub)}
-                                            disabled={rejectMutation.isPending || !rejectReason.trim()}
+                                            disabled={rejectMutation.isPending || rejectReason.trim().length < 10}
                                             style={{ display: "flex", alignItems: "center", gap: 6 }}
                                         >
                                             {rejectMutation.isPending ? <MdHourglassEmpty size={18} /> : null}

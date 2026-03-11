@@ -6,9 +6,7 @@ import { z } from "zod";
 // ─── Task Composer ────────────────────────────────────────────────────────────
 
 export const taskSchema = z.object({
-    task_type: z.enum(["social_media_posting", "email_sending", "social_media_liking"], {
-        required_error: "Please select a task type",
-    }),
+    task_type: z.enum(["social_media_posting", "email_sending", "social_media_liking"]),
     title: z
         .string()
         .min(5, "Title must be at least 5 characters")

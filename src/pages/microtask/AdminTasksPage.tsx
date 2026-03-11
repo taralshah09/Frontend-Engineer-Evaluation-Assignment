@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useQueryState, parseAsString } from "nuqs";
 import {
     useTasks,
     useDeleteTask,
     useUpdateTask,
+    useBulkUpdateTasks,
     useSubmissions,
 } from "@/features/hooks";
 import { TaskType, TaskStatus } from "@/libs/types";
@@ -33,9 +35,9 @@ interface AdminTasksPageProps {
 }
 
 export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, campaignId }: AdminTasksPageProps) {
-    const [search, setSearch] = useState("");
-    const [filterType, setFilterType] = useState("all");
-    const [filterStatus, setFilterStatus] = useState("all");
+    const [search, setSearch] = useQueryState("search", { defaultValue: "", shallow: false });
+    const [filterType, setFilterType] = useQueryState("type", { defaultValue: "all", shallow: false });
+    const [filterStatus, setFilterStatus] = useQueryState("status", { defaultValue: "all", shallow: false });
     const [selected, setSelected] = useState<string[]>([]);
     const [openTaskId, setOpenTaskId] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<"card" | "inline">(() => {
@@ -54,6 +56,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
     const { data: allSubs = [] } = useSubmissions();
     const deleteMutation = useDeleteTask();
     const updateMutation = useUpdateTask();
+    const bulkUpdateMutation = useBulkUpdateTasks();
 
     const filtered = tasks.filter(t => {
         if (campaignId && t.campaign_id !== campaignId) return false;
@@ -110,17 +113,18 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
     };
 
     const handleBulkUpdate = async () => {
-        if (selected.length === 0) return;
+        if (selected.length === 0 || Object.keys(bulkValues).length === 0) return;
         try {
-            await Promise.all(selected.map(id =>
-                updateMutation.mutateAsync({ id, values: bulkValues })
-            ));
+            await bulkUpdateMutation.mutateAsync({
+                ids: selected,
+                updates: bulkValues
+            });
             showToast(`${selected.length} tasks updated successfully.`);
             setIsBulkEditing(false);
             setBulkValues({});
             setSelected([]);
-        } catch {
-            showToast("Failed to update some tasks.", "error");
+        } catch (err: any) {
+            showToast(err.message || "Bulk update failed", "error");
         }
     };
 

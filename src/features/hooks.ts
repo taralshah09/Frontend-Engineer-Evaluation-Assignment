@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { taskStore, submissionStore } from "@/storage";
+import { taskStore, submissionStore, campaignStore } from "@/storage";
 import type {
     Task,
     TaskFilters,
@@ -148,6 +148,16 @@ export function useRejectSubmission() {
             qc.invalidateQueries({ queryKey: submissionKeys.byTask(sub.task_id) });
             qc.invalidateQueries({ queryKey: taskKeys.detail(sub.task_id) });
             qc.invalidateQueries({ queryKey: taskKeys.all });
+        },
+    });
+}
+
+export function useCreateCampaign() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (values: { name: string }) => campaignStore.create(values.name),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["campaigns"] });
         },
     });
 }
