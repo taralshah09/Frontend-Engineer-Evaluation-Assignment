@@ -4,6 +4,8 @@ import {
     useApproveSubmission,
     useRejectSubmission,
     useTasks,
+    useCampaigns,
+    useDeleteCampaign,
 } from "@/features/hooks";
 import { useQueryState } from "nuqs";
 import { Badge, TypeBadge } from "../../components/common/Badge";
@@ -19,7 +21,8 @@ import {
     MdInbox,
     MdBlock,
     MdClose,
-    MdCheck
+    MdCheck,
+    MdDelete
 } from "react-icons/md";
 
 interface AdminSubmissionsPageProps {
@@ -36,6 +39,11 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
     });
     const [openSub, setOpenSub] = useState<Submission | null>(null);
     const [search, setSearch] = useQueryState("search", { defaultValue: "", shallow: false });
+    const [filterType, setFilterType] = useQueryState("type", { defaultValue: "", shallow: false });
+    const [qTaskId, setQTaskId] = useQueryState("taskId", { defaultValue: "", shallow: false });
+    
+    const effectiveTaskId = filterTaskId || qTaskId;
+
     const [rejecting, setRejecting] = useState(false);
     const [rejectReason, setRejectReason] = useState("");
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -47,21 +55,25 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
 
     const { data: allSubs = [], isLoading } = useSubmissions();
     const { data: tasks = [] } = useTasks();
+    const { data: campaigns = [] } = useCampaigns();
 
     const approveMutation = useApproveSubmission();
     const rejectMutation = useRejectSubmission();
+    const deleteCampaignMutation = useDeleteCampaign();
 
     const taskMap = Object.fromEntries(tasks.map(t => [t.id, t]));
+    const campaignMap = Object.fromEntries(campaigns.map(c => [c.id, c]));
 
     const counts = {
-        pending: allSubs.filter(s => s.status === "pending").length,
-        approved: allSubs.filter(s => s.status === "approved").length,
-        rejected: allSubs.filter(s => s.status === "rejected").length,
+        pending: allSubs.filter(s => s.status === "pending" && (!effectiveTaskId || s.task_id === effectiveTaskId) && (!filterType || s.task_type === filterType)).length,
+        approved: allSubs.filter(s => s.status === "approved" && (!effectiveTaskId || s.task_id === effectiveTaskId) && (!filterType || s.task_type === filterType)).length,
+        rejected: allSubs.filter(s => s.status === "rejected" && (!effectiveTaskId || s.task_id === effectiveTaskId) && (!filterType || s.task_type === filterType)).length,
     };
 
     const filtered = allSubs.filter(s => {
         if (s.status !== activeTab) return false;
-        if (filterTaskId && s.task_id !== filterTaskId) return false;
+        if (effectiveTaskId && s.task_id !== effectiveTaskId) return false;
+        if (filterType && s.task_type !== filterType) return false;
 
         if (search) {
             const q = search.toLowerCase();
@@ -72,6 +84,8 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
 
         return true;
     });
+
+    const activeTask = effectiveTaskId ? taskMap[effectiveTaskId] : null;
 
     const getWorkerInitials = (userId: string) => userId.split("_").map(p => p[0]).join("").toUpperCase().slice(0, 2);
     const getAvatarColor = (userId: string) => {
@@ -119,25 +133,32 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
 
     return (
         <>
-            {filterTaskId && (
-                <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 6,
-                        background: "var(--indigo-light)", color: "var(--indigo)",
-                        border: "1px solid #c7d2fe", borderRadius: 99,
-                        padding: "4px 12px", fontSize: 12.5, fontWeight: 600,
-                    }}>
-                        <MdLink size={14} /> Filtered by task: <strong>{taskMap[filterTaskId]?.title ?? filterTaskId}</strong>
-                        {onClearTaskFilter && (
-                            <button
-                                onClick={onClearTaskFilter}
-                                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--indigo)", fontSize: 14, lineHeight: 1, padding: "0 0 0 4px", display: "flex" }}
-                                title="Clear filter"
-                            ><MdClose size={20} /></button>
-                        )}
-                    </span>
+            {activeTask && (
+                <div style={{ background: "var(--indigo-light)", border: "1px solid var(--indigo)", borderRadius: "var(--radius-sm)", padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--indigo)", fontWeight: 700, fontSize: 14 }}>
+                            <MdLink size={18} /> Filtered by: {activeTask.title}
+                        </div>
+                        <span className="campaign-chip"><span style={{ background: "var(--indigo)" }} />{campaignMap[activeTask.campaign_id]?.name || activeTask.campaign_id}</span>
+                        <button 
+                            className="btn btn-danger btn-xs" 
+                            style={{ padding: "4px 8px", fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}
+                            onClick={async () => {
+                                if (confirm("Delete this entire campaign and all its tasks?")) {
+                                    await deleteCampaignMutation.mutateAsync(activeTask.campaign_id);
+                                    onClearTaskFilter?.();
+                                }
+                            }}
+                        >
+                            <MdDelete size={14} /> Delete Campaign
+                        </button>
+                    </div>
+                    <button className="btn btn-ghost btn-sm" style={{ color: "var(--indigo)", fontWeight: 600 }} onClick={() => { setQTaskId(""); onClearTaskFilter?.(); }}>
+                        <MdClose size={18} style={{ marginRight: 4 }} /> Clear Filter
+                    </button>
                 </div>
             )}
+
             <div className="submissions-filter-row" style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
                 <div className="tabs">
                     {(["pending", "approved", "rejected"] as const).map(tab => (
@@ -157,11 +178,11 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
-                <select className="select">
-                    <option>All task types</option>
-                    <option>Social Posting</option>
-                    <option>Email Sending</option>
-                    <option>Social Liking</option>
+                <select className="select" value={filterType} onChange={e => setFilterType(e.target.value)}>
+                    <option value="">All task types</option>
+                    <option value="social_media_posting">Social Posting</option>
+                    <option value="email_sending">Email Sending</option>
+                    <option value="social_media_liking">Social Liking</option>
                 </select>
             </div>
 
@@ -171,6 +192,7 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                         <tr>
                             <th>Worker</th>
                             <th>Task</th>
+                            <th>Campaign</th>
                             <th>Type</th>
                             <th>Submitted</th>
                             <th>Evidence</th>
@@ -197,6 +219,11 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                             {task?.title ?? sub.task_id}
                                         </div>
                                     </td>
+                                    <td>
+                                        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                                            {task ? (campaignMap[task.campaign_id]?.name || task.campaign_id) : "—"}
+                                        </div>
+                                    </td>
                                     <td><TypeBadge type={sub.task_type as any} /></td>
                                     <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatDate(sub.submitted_at)}</td>
                                     <td>
@@ -204,7 +231,14 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                             <MdVisibility size={14} style={{ marginRight: 4 }} /> Preview
                                         </button>
                                     </td>
-                                    <td><Badge status={sub.status} /></td>
+                                    <td>
+                                        <Badge status={sub.status} />
+                                        {sub.phase_id && (
+                                            <div style={{ fontSize: 10, color: "var(--indigo)", fontWeight: 600, marginTop: 2 }}>
+                                                Phase Index: {task?.phases?.find(p => p.id === sub.phase_id)?.phase_index ?? "—"}
+                                            </div>
+                                        )}
+                                    </td>
                                     {activeTab === "rejected" && (
                                         <td style={{ fontSize: 12, color: "var(--text-muted)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                             {"rejection_reason" in sub ? sub.rejection_reason ?? "—" : "—"}
@@ -267,6 +301,11 @@ export function AdminSubmissionsPage({ filterTaskId, onClearTaskFilter }: AdminS
                                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                                     <TypeBadge type={openSub.task_type as any} />
                                     <Badge status={openSub.status} />
+                                    {openSub.phase_id && (
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo)", background: "var(--indigo-light)", padding: "2px 8px", borderRadius: 4 }}>
+                                            {taskMap[openSub.task_id]?.phases?.find(p => p.id === openSub.phase_id)?.phase_name ?? "Phased"}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 

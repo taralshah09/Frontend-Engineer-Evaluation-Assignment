@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { WorkerFeedPage } from "@/features/microtask/WorkerFeedPage";
-import { useSubmissions } from "@/features/hooks";
+import { WorkerSubmissionsPage } from "@/features/microtask/WorkerSubmissionsPage";
+import { useSubmissions, useUser } from "@/features/hooks";
 import { userStore } from "@/storage";
 import type { Session, User } from "@/libs/types";
 import {
@@ -9,6 +10,7 @@ import {
     MdLogout,
     MdMenu,
     MdExpandLess,
+    MdHistory,
 } from "react-icons/md";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 
@@ -19,19 +21,12 @@ interface WorkerShellProps {
 
 export function WorkerShell({ session, onLogout }: WorkerShellProps) {
     const [page, setPage] = useState("feed");
-    const [workerUser, setWorkerUser] = useState<User | null>(null);
+    const { data: mySubs = [] } = useSubmissions({ user_id: session.userId });
+    const { data: workerUser } = useUser(session.userId);
     const [profileOpen, setProfileOpen] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
-
-    const { data: mySubs = [] } = useSubmissions({ user_id: session.userId });
-
-    useEffect(() => {
-        userStore.getById(session.userId).then(user => {
-            if (user) setWorkerUser(user);
-        }).catch(() => { });
-    }, [session.userId]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -45,6 +40,7 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
 
     const navItems = [
         { id: "feed", icon: <MdFlashOn size={17} />, label: "Tasks" },
+        { id: "submissions", icon: <MdHistory size={17} />, label: "Submissions" },
         { id: "profile", icon: <MdPerson size={17} />, label: "Profile" },
     ];
 
@@ -125,6 +121,11 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                     <div style={{ fontSize: 10, fontWeight: 600, color: "var(--accent)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>Your Earnings</div>
                     <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 20, color: "var(--text-primary)" }}>${totalEarned.toFixed(2)}</div>
                     <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{approvedCount}/{totalSubmissions} approved</div>
+                    {pendingSubs.length > 0 && (
+                        <div style={{ fontSize: 10, color: "var(--indigo)", background: "var(--indigo-light)", padding: "2px 6px", borderRadius: 4, marginTop: 8, display: "inline-block" }}>
+                            {pendingSubs.length} pending review
+                        </div>
+                    )}
                 </div>
 
                 <div className="sidebar-footer">
@@ -151,10 +152,12 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
                     <div className="topbar-menu-btn" onClick={() => setSidebarOpen(v => !v)}>
                         <MdMenu size={20} />
                     </div>
-                    <span className="topbar-title">{page === "feed" ? "Tasks Feed" : "My Profile"}</span>
+                    <span className="topbar-title">
+                        {page === "feed" ? "Tasks Feed" : page === "submissions" ? "My Submissions" : "My Profile"}
+                    </span>
                     <div className="topbar-sep" />
                     <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                        {page === "feed" ? "Browse and complete available tasks" : "Your account and earnings"}
+                        {page === "feed" ? "Browse and complete available tasks" : page === "submissions" ? "View and track your work history" : "Your account and earnings"}
                     </span>
                     <div className="topbar-actions">
                         <ThemeToggle />
@@ -217,6 +220,7 @@ export function WorkerShell({ session, onLogout }: WorkerShellProps) {
 
                 <div className="page-content">
                     {page === "feed" && <WorkerFeedPage session={session} />}
+                    {page === "submissions" && <WorkerSubmissionsPage session={session} />}
                     {page === "profile" && (
                         <div className="table-card" style={{ padding: 32, maxWidth: 560 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>

@@ -6,10 +6,13 @@ import {
     useUpdateTask,
     useBulkUpdateTasks,
     useSubmissions,
+    useDeleteCampaign,
+    useCampaigns,
 } from "@/features/hooks";
 import { TaskType, TaskStatus } from "@/libs/types";
 import { Badge, TypeBadge } from "../../components/common/Badge";
 import { ProgressBar } from "../../components/common/ProgressBar";
+import { calculateDripStatus } from "@/utils/dripUtils";
 import {
     MdFlashOn,
     MdOutlineInbox,
@@ -24,7 +27,8 @@ import {
     MdClose,
     MdArrowForward,
     MdViewModule,
-    MdViewList
+    MdViewList,
+    MdOutlineAvTimer
 } from "react-icons/md";
 
 interface AdminTasksPageProps {
@@ -57,7 +61,9 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
 
     const { data: tasks = [], isLoading } = useTasks();
     const { data: allSubs = [] } = useSubmissions();
+    const { data: campaigns = [] } = useCampaigns();
     const deleteMutation = useDeleteTask();
+    const deleteCampaignMutation = useDeleteCampaign();
     const updateMutation = useUpdateTask();
     const bulkUpdateMutation = useBulkUpdateTasks();
 
@@ -68,6 +74,9 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
         if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
     });
+
+    const campaignMap = Object.fromEntries(campaigns.map(c => [c.id, c.name]));
+    const getCampaignName = (id: string) => campaignMap[id] || id;
 
     const toggleSelect = (id: string) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
     const toggleAll = () => setSelected(selected.length === filtered.length ? [] : filtered.map(t => t.id));
@@ -141,6 +150,21 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
 
     return (
         <>
+            {campaignId && (
+                <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end" }}>
+                    <button 
+                        className="btn btn-danger btn-sm" 
+                        onClick={async () => {
+                            if (confirm("Delete this entire campaign and all its tasks?")) {
+                                await deleteCampaignMutation.mutateAsync(campaignId);
+                            }
+                        }}
+                        style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                        <MdDelete size={16} /> Delete Campaign
+                    </button>
+                </div>
+            )}
             <div className="stats-grid">
                 {[
                     { label: "Active Tasks", value: String(activeTasks), delta: `${campaignTasks.length} total${campaignId ? " in campaign" : ""}`, dir: "up", icon: <MdFlashOn size={20} />, bg: "#eef2ff", ic: "#6366f1" },
@@ -243,7 +267,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                             <div style={{ fontWeight: 600, fontSize: 13.5, maxWidth: 280, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</div>
                                         </td>
                                         <td><TypeBadge type={task.task_type as any} /></td>
-                                        <td><span className="campaign-chip"><span />{task.campaign_id}</span></td>
+                                        <td><span className="campaign-chip"><span />{getCampaignName(task.campaign_id)}</span></td>
                                         <td><span className="reward-chip">${task.reward.toFixed(2)}</span></td>
                                         <td style={{ minWidth: 160 }}>
                                             <ProgressBar
@@ -253,6 +277,25 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                             />
                                         </td>
                                         <td><Badge status={task.status} /></td>
+                                        <td>
+                                            {task.phases && task.current_phase_index !== undefined ? (
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo)" }}>
+                                                    Phase {task.current_phase_index + 1}/{task.phases.length}
+                                                </div>
+                                            ) : task.drip_enabled ? (() => {
+                                                const ds = calculateDripStatus(task);
+                                                return (
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 4, color: ds.state === "Completed" ? "var(--emerald)" : "var(--indigo)" }}>
+                                                        <MdOutlineAvTimer size={14} />
+                                                        <span style={{ fontSize: 10, fontWeight: 700 }}>
+                                                            {ds.state === "Waiting" ? `Next in ${ds.nextReleaseIn}m` : ds.state === "Completed" ? "All Released" : "Drip Active"}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })() : (
+                                                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>
+                                            )}
+                                        </td>
                                         <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatDate(task.created_at)}</td>
                                         <td onClick={e => e.stopPropagation()}>
                                             <div style={{ display: "flex", gap: 4 }}>
@@ -281,11 +324,21 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                 <div className="admin-task-card-header">
                                     <TypeBadge type={task.task_type as any} />
                                     <Badge status={task.status} />
+                                    {task.phases && task.current_phase_index !== undefined && (
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--indigo)", background: "var(--indigo-light)", padding: "1px 6px", borderRadius: 3 }}>
+                                            P{task.current_phase_index + 1}/{task.phases.length}
+                                        </span>
+                                    )}
+                                    {task.drip_enabled && (
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--indigo)", background: "var(--indigo-light)", padding: "1px 6px", borderRadius: 3, display: "flex", alignItems: "center", gap: 2 }}>
+                                            <MdOutlineAvTimer size={12} /> Drip
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="admin-task-card-body">
                                     <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", height: 40 }}>{task.title}</div>
                                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                        <span className="campaign-chip"><span />{task.campaign_id}</span>
+                                        <span className="campaign-chip"><span />{getCampaignName(task.campaign_id)}</span>
                                         <span className="reward-chip">${task.reward.toFixed(2)}</span>
                                     </div>
                                     <div style={{ marginBottom: 4, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
@@ -327,7 +380,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                 <TypeBadge type={openTask.task_type as any} />
                                 <div className="sheet-title" style={{ marginTop: 8 }}>{openTask.title}</div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                                    <span className="campaign-chip"><span />{openTask.campaign_id}</span>
+                                    <span className="campaign-chip"><span />{getCampaignName(openTask.campaign_id)}</span>
                                     <Badge status={openTask.status} />
                                 </div>
                             </div>
@@ -350,6 +403,62 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                 <div className="form-label" style={{ marginBottom: 8 }}>Slot progress</div>
                                 <ProgressBar value={openTask.approved_count} max={openTask.amount} />
                             </div>
+                            
+                            {openTask.phases && (
+                                <div style={{ marginBottom: 20 }}>
+                                    <div className="form-label" style={{ marginBottom: 8 }}>Phase Breakdown</div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        {openTask.phases.map((p, i) => (
+                                            <div key={p.id} style={{ 
+                                                display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", 
+                                                borderRadius: "var(--radius-sm)", border: "1px solid var(--border)",
+                                                background: i === openTask.current_phase_index ? "var(--surface-2)" : "var(--surface-1)"
+                                            }}>
+                                                <div style={{ width: 20, height: 20, borderRadius: "50%", background: i <= (openTask.current_phase_index ?? -1) ? "var(--indigo)" : "var(--border)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>{i + 1}</div>
+                                                <div style={{ flex: 1, fontSize: 12 }}>
+                                                    <div style={{ fontWeight: 600 }}>{p.phase_name}</div>
+                                                    <div style={{ color: "var(--text-muted)", fontSize: 11 }}>{p.approved_count} / {p.slots} slots approved</div>
+                                                </div>
+                                                <div style={{ width: 80 }}>
+                                                    <ProgressBar value={p.approved_count} max={p.slots} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {openTask.drip_enabled && (
+                                <div style={{ marginBottom: 20 }}>
+                                    <div className="form-label" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                                        <MdOutlineAvTimer size={16} /> Drip Release Progress
+                                    </div>
+                                    <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 16 }}>
+                                        {(() => {
+                                            const ds = calculateDripStatus(openTask);
+                                            return (
+                                                <>
+                                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 12 }}>
+                                                        <span style={{ fontWeight: 600, color: ds.state === "Completed" ? "var(--emerald)" : "var(--indigo)" }}>
+                                                            {ds.state === "Completed" ? "All batches released" : ds.state === "Waiting" ? `Waiting batch: ${ds.nextReleaseIn}m left` : "Batch releasing..."}
+                                                        </span>
+                                                        <span style={{ color: "var(--text-muted)" }}>{ds.releasedSlots} / {openTask.amount} slots</span>
+                                                    </div>
+                                                    <ProgressBar 
+                                                        value={ds.releasedSlots} 
+                                                        max={openTask.amount} 
+                                                        color={ds.state === "Completed" ? "#10b981" : "#6366f1"}
+                                                    />
+                                                    <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)" }}>
+                                                        Releasing {openTask.drip_amount} slots every {openTask.drip_interval} mins.
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="divider" />
                             <div className="section-title">Recent Submissions</div>
                             {taskSubs.slice(0, 3).map(sub => (

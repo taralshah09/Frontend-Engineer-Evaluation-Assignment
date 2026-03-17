@@ -173,6 +173,24 @@ export const campaignStore = {
         setAll(KEYS.CAMPAIGNS, campaigns);
         return campaign;
     },
+
+    async delete(id: string): Promise<void> {
+        await writeDelay();
+        maybeThrow("Campaign delete");
+
+        // 1. Delete the campaign itself
+        const campaigns = getAll<Campaign>(KEYS.CAMPAIGNS).filter((c) => c.id !== id);
+        setAll(KEYS.CAMPAIGNS, campaigns);
+
+        // 2. Find all tasks belonging to this campaign
+        const tasks = getAll<Task>(KEYS.TASKS);
+        const tasksToDelete = tasks.filter((t) => t.campaign_id === id);
+
+        // 3. Delete each task (this also handles deleting their submissions)
+        for (const task of tasksToDelete) {
+            await taskStore.delete(task.id);
+        }
+    },
 };
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────
@@ -223,6 +241,13 @@ export const taskStore = {
             updated_at: now,
             submissions_count: 0,
             approved_count: 0,
+            phases: values.phases?.map((p, idx) => ({
+                ...p,
+                submissions_count: 0,
+                approved_count: 0,
+                phase_index: idx + 1
+            })),
+            current_phase_index: values.phases && values.phases.length > 0 ? 0 : undefined,
         };
         tasks.push(task);
         setAll(KEYS.TASKS, tasks);
@@ -293,7 +318,23 @@ export const taskStore = {
         tasks[idx].submissions_count = subs.length;
         tasks[idx].approved_count = subs.filter((s) => s.status === "approved").length;
 
-        if (tasks[idx].approved_count >= tasks[idx].amount) {
+        // Phase logic
+        if (tasks[idx].phases && tasks[idx].current_phase_index !== undefined) {
+            const currentIdx = tasks[idx].current_phase_index!;
+            const phase = tasks[idx].phases![currentIdx];
+            const phaseSubs = subs.filter((s) => s.phase_id === phase.id);
+            
+            phase.submissions_count = phaseSubs.length;
+            phase.approved_count = phaseSubs.filter((s) => s.status === "approved").length;
+
+            if (phase.approved_count >= phase.slots) {
+                if (currentIdx < tasks[idx].phases!.length - 1) {
+                    tasks[idx].current_phase_index! += 1;
+                } else {
+                    tasks[idx].status = "completed";
+                }
+            }
+        } else if (tasks[idx].approved_count >= tasks[idx].amount) {
             tasks[idx].status = "completed";
         }
 
@@ -345,6 +386,12 @@ export const submissionStore = {
         const subs = getAll<Submission>(KEYS.SUBMISSIONS);
         const now = new Date().toISOString();
 
+        const tasks = getAll<Task>(KEYS.TASKS);
+        const task = tasks.find((t) => t.id === taskId);
+        const phaseId = task?.phases && task.current_phase_index !== undefined 
+            ? task.phases[task.current_phase_index].id 
+            : undefined;
+
         const base = {
             id: `sub_${nanoid(8)}`,
             task_id: taskId,
@@ -352,6 +399,7 @@ export const submissionStore = {
             status: "pending" as const,
             submitted_at: now,
             screenshot_url: values.screenshot_url,
+            phase_id: phaseId,
         };
 
         let submission: Submission;

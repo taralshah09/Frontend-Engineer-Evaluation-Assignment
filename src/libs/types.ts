@@ -32,6 +32,18 @@ export interface Session {
 
 // ─── Task ─────────────────────────────────────────────────────────────────────
 
+export interface TaskPhase {
+  id: string;
+  phase_name: string;
+  phase_index: number;
+  task_type: TaskType;
+  slots: number;
+  instructions: string;
+  reward: number;
+  submissions_count: number;
+  approved_count: number;
+}
+
 export interface Task {
   id: string;
   task_type: TaskType;
@@ -47,6 +59,12 @@ export interface Task {
   updated_at: string;
   submissions_count: number;
   approved_count: number;
+  phases?: TaskPhase[];
+  current_phase_index?: number;
+  drip_enabled: boolean;
+  drip_amount?: number;
+  drip_interval?: number; // in minutes
+  drip_start_time?: string; // ISO date string
 }
 
 export interface TaskFormValues {
@@ -58,6 +76,11 @@ export interface TaskFormValues {
   reward: number;
   allow_multiple_submissions: boolean;
   campaign_id: string;
+  phases?: TaskPhase[];
+  drip_enabled: boolean;
+  drip_amount?: number;
+  drip_interval?: number;
+  drip_start_time?: string;
 }
 
 // ─── Submission ───────────────────────────────────────────────────────────────
@@ -72,6 +95,7 @@ interface SubmissionBase {
   reviewed_at?: string;
   rejection_reason?: string;
   screenshot_url: string;
+  phase_id?: string;
 }
 
 export interface SocialMediaSubmission extends SubmissionBase {
@@ -96,7 +120,8 @@ export type SubmissionFormValues =
     task_type: "email_sending";
     email_content: string;
     screenshot_url: string;
-  };
+  }
+  & { phase_id?: string };
 
 // ─── Campaign ─────────────────────────────────────────────────────────────────
 
