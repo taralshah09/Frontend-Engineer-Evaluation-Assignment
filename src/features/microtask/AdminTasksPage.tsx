@@ -6,6 +6,7 @@ import {
     useUpdateTask,
     useBulkUpdateTasks,
     useSubmissions,
+    useDeleteCampaign,
 } from "@/features/hooks";
 import { TaskType, TaskStatus } from "@/libs/types";
 import { Badge, TypeBadge } from "../../components/common/Badge";
@@ -58,6 +59,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
     const { data: tasks = [], isLoading } = useTasks();
     const { data: allSubs = [] } = useSubmissions();
     const deleteMutation = useDeleteTask();
+    const deleteCampaignMutation = useDeleteCampaign();
     const updateMutation = useUpdateTask();
     const bulkUpdateMutation = useBulkUpdateTasks();
 
@@ -141,6 +143,21 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
 
     return (
         <>
+            {campaignId && (
+                <div style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end" }}>
+                    <button 
+                        className="btn btn-danger btn-sm" 
+                        onClick={async () => {
+                            if (confirm("Delete this entire campaign and all its tasks?")) {
+                                await deleteCampaignMutation.mutateAsync(campaignId);
+                            }
+                        }}
+                        style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                        <MdDelete size={16} /> Delete Campaign
+                    </button>
+                </div>
+            )}
             <div className="stats-grid">
                 {[
                     { label: "Active Tasks", value: String(activeTasks), delta: `${campaignTasks.length} total${campaignId ? " in campaign" : ""}`, dir: "up", icon: <MdFlashOn size={20} />, bg: "#eef2ff", ic: "#6366f1" },
@@ -253,6 +270,15 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                             />
                                         </td>
                                         <td><Badge status={task.status} /></td>
+                                        <td>
+                                            {task.phases && task.current_phase_index !== undefined ? (
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo)" }}>
+                                                    Phase {task.current_phase_index + 1}/{task.phases.length}
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>
+                                            )}
+                                        </td>
                                         <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{formatDate(task.created_at)}</td>
                                         <td onClick={e => e.stopPropagation()}>
                                             <div style={{ display: "flex", gap: 4 }}>
@@ -281,6 +307,11 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                 <div className="admin-task-card-header">
                                     <TypeBadge type={task.task_type as any} />
                                     <Badge status={task.status} />
+                                    {task.phases && task.current_phase_index !== undefined && (
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--indigo)", background: "var(--indigo-light)", padding: "1px 6px", borderRadius: 3 }}>
+                                            P{task.current_phase_index + 1}/{task.phases.length}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="admin-task-card-body">
                                     <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", height: 40 }}>{task.title}</div>
@@ -350,6 +381,31 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                 <div className="form-label" style={{ marginBottom: 8 }}>Slot progress</div>
                                 <ProgressBar value={openTask.approved_count} max={openTask.amount} />
                             </div>
+                            
+                            {openTask.phases && (
+                                <div style={{ marginBottom: 20 }}>
+                                    <div className="form-label" style={{ marginBottom: 8 }}>Phase Breakdown</div>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        {openTask.phases.map((p, i) => (
+                                            <div key={p.id} style={{ 
+                                                display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", 
+                                                borderRadius: "var(--radius-sm)", border: "1px solid var(--border)",
+                                                background: i === openTask.current_phase_index ? "var(--surface-2)" : "var(--surface-1)"
+                                            }}>
+                                                <div style={{ width: 20, height: 20, borderRadius: "50%", background: i <= (openTask.current_phase_index ?? -1) ? "var(--indigo)" : "var(--border)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>{i + 1}</div>
+                                                <div style={{ flex: 1, fontSize: 12 }}>
+                                                    <div style={{ fontWeight: 600 }}>{p.phase_name}</div>
+                                                    <div style={{ color: "var(--text-muted)", fontSize: 11 }}>{p.approved_count} / {p.slots} slots approved</div>
+                                                </div>
+                                                <div style={{ width: 80 }}>
+                                                    <ProgressBar value={p.approved_count} max={p.slots} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="divider" />
                             <div className="section-title">Recent Submissions</div>
                             {taskSubs.slice(0, 3).map(sub => (

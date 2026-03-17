@@ -104,6 +104,11 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
             values = { task_type: "email_sending", email_content: emailContent.trim(), screenshot_url: screenshotB64 };
         }
 
+        if (openTask.phases && openTask.current_phase_index !== undefined) {
+            (values as any).phase_id = openTask.phases[openTask.current_phase_index].id;
+            (values as any).task_type = openTask.phases[openTask.current_phase_index].task_type;
+        }
+
         try {
             await createSubmission.mutateAsync({ taskId: openTask.id, userId: session.userId, values });
             setSubmitted(true);
@@ -120,6 +125,12 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
 
     const hasAlreadySubmitted = (task: Task) => {
         if (task.allow_multiple_submissions) return false;
+        
+        if (task.phases && task.current_phase_index !== undefined) {
+            const currentPhase = task.phases[task.current_phase_index];
+            return mySubs.some(s => s.task_id === task.id && s.phase_id === currentPhase.id);
+        }
+        
         return mySubs.some(s => s.task_id === task.id);
     };
 
@@ -220,6 +231,11 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                     <span className="reward-chip">${task.reward.toFixed(2)}</span>
                                 </div>
                                 <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 600, fontSize: 14, lineHeight: 1.4, marginBottom: 8 }}>{task.title}</div>
+                                {task.phases && task.current_phase_index !== undefined && (
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo)", background: "var(--indigo-light)", display: "inline-block", padding: "2px 8px", borderRadius: 4, marginBottom: 8 }}>
+                                        {task.phases[task.current_phase_index].phase_name}
+                                    </div>
+                                )}
                                 <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, lineHeight: 1.5 }}>
                                     {slotsLeft} slot{slotsLeft !== 1 ? "s" : ""} remaining
                                 </div>
@@ -248,7 +264,14 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                             <div key={task.id} className="task-row animate-up" onClick={() => { setOpenTask(task); setSubmitMode(false); }}>
                                 <div className="task-row-info">
                                     <TypeBadge type={task.task_type as any} />
-                                    <div className="task-row-title">{task.title}</div>
+                                    <div className="task-row-title">
+                                        {task.title}
+                                        {task.phases && task.current_phase_index !== undefined && (
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--indigo)", background: "var(--indigo-light)", padding: "1px 6px", borderRadius: 3, marginLeft: 8 }}>
+                                                {task.phases[task.current_phase_index].phase_name}
+                                            </span>
+                                        )}
+                                    </div>
                                     <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{task.campaign_id}</span>
                                 </div>
                                 <div className="task-row-meta">
@@ -298,8 +321,8 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                 <>
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
                                         {[
-                                            { label: "Reward", value: `$${openTask.reward.toFixed(2)} AUD` },
-                                            { label: "Slots left", value: `${Math.max(0, openTask.amount - openTask.approved_count)}` },
+                                            { label: "Reward", value: `$${(openTask.phases && openTask.current_phase_index !== undefined ? openTask.phases[openTask.current_phase_index].reward : openTask.reward).toFixed(2)} AUD` },
+                                            { label: "Slots left", value: `${openTask.phases && openTask.current_phase_index !== undefined ? Math.max(0, openTask.phases[openTask.current_phase_index].slots - openTask.phases[openTask.current_phase_index].approved_count) : Math.max(0, openTask.amount - openTask.approved_count)}` },
                                         ].map(s => (
                                             <div key={s.label} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
                                                 <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>{s.label}</div>
@@ -315,7 +338,7 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                     <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 16, marginBottom: 16 }}>
                                         <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>
                                             <MarkdownRenderer
-                                                content={openTask.details || (
+                                                content={(openTask.phases && openTask.current_phase_index !== undefined && openTask.phases[openTask.current_phase_index].instructions) || openTask.details || (
                                                     openTask.task_type === "social_media_posting" ? "Post on Twitter/X or LinkedIn\n• Use campaign hashtags\n• Tag @MicroTaskIO\n• Post must be public\n\nSubmit: Post URL + Screenshot"
                                                         : openTask.task_type === "email_sending" ? "Send email to 5+ recipients\n• Include key features\n• Add sign-up CTA link\n• Personalise each email\n\nSubmit: Full email content + Screenshot"
                                                             : "Like the specified post\n• Use personal account only\n• Account 3+ months old\n• 50+ followers required\n\nSubmit: Profile URL + Screenshot"
@@ -323,6 +346,45 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                             />
                                         </div>
                                     </div>
+
+                                    {openTask.phases && (
+                                        <div style={{ marginBottom: 20 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 12 }}>Phase Progress</div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                                {openTask.phases.map((p, i) => {
+                                                    const isLocked = i > (openTask.current_phase_index ?? 0);
+                                                    const isDone = i < (openTask.current_phase_index ?? 0);
+                                                    const isActive = i === openTask.current_phase_index;
+                                                    const hasSubmitted = mySubs.some(s => s.task_id === openTask.id && s.phase_id === p.id);
+
+                                                    return (
+                                                        <div key={p.id} style={{
+                                                            display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+                                                            borderRadius: "var(--radius-sm)", border: "1px solid var(--border)",
+                                                            background: isActive ? "var(--indigo-light)" : "var(--surface-1)",
+                                                            opacity: isLocked ? 0.6 : 1,
+                                                            borderLeft: isActive ? "4px solid var(--indigo)" : "1px solid var(--border)"
+                                                        }}>
+                                                            <div style={{
+                                                                width: 24, height: 24, borderRadius: "50%",
+                                                                background: isDone ? "var(--emerald)" : isActive ? "var(--indigo)" : "var(--border)",
+                                                                color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                                                                fontSize: 11, fontWeight: 700
+                                                            }}>
+                                                                {isDone ? <MdCheck size={14} /> : i + 1}
+                                                            </div>
+                                                            <div style={{ flex: 1 }}>
+                                                                <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? "var(--indigo)" : "var(--text-main)" }}>{p.phase_name}</div>
+                                                                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{p.slots} slots • ${p.reward.toFixed(2)}</div>
+                                                            </div>
+                                                            {hasSubmitted && <span style={{ fontSize: 11, color: "var(--emerald)", fontWeight: 600 }}>Submitted</span>}
+                                                            {isLocked && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Locked</span>}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </>
                             ) : (
                                 <>
@@ -343,7 +405,7 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                                     <input className="input" placeholder="https://twitter.com/yourhandle/status/…" value={postUrl} onChange={e => setPostUrl(e.target.value)} />
                                                 </div>
                                             )}
-                                            {openTask.task_type === "email_sending" && (
+                                            {((openTask.phases && openTask.current_phase_index !== undefined ? openTask.phases[openTask.current_phase_index].task_type : openTask.task_type) === "email_sending") && (
                                                 <div className="form-group">
                                                     <label className="form-label">Email Content <span style={{ color: "var(--rose)" }}>*</span></label>
                                                     <textarea className="input" rows={6} placeholder="Paste the full email you sent (including subject line)…" value={emailContent} onChange={e => setEmailContent(e.target.value)} />

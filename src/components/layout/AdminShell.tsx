@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { TaskComposerPage } from "@/features/microtask/TaskComposerPage";
 import { AdminTasksPage } from "@/features/microtask/AdminTasksPage";
 import { AdminSubmissionsPage } from "@/features/microtask/AdminSubmissionsPage";
-import { useSubmissions, useCreateCampaign, useCampaigns } from "@/features/hooks";
+import { useSubmissions, useCreateCampaign, useCampaigns, useDeleteCampaign } from "@/features/hooks";
 import type { Session } from "@/libs/types";
 import {
     MdFlashOn,
@@ -15,6 +15,7 @@ import {
     MdMenu,
     MdExpandLess,
     MdAdd,
+    MdDelete,
 } from "react-icons/md";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 
@@ -37,8 +38,23 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
     const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
     const [newCampaignName, setNewCampaignName] = useState("");
     const createCampaignMutation = useCreateCampaign();
+    const deleteCampaignMutation = useDeleteCampaign();
     const { data: campaigns = [] } = useCampaigns();
     const profileRef = useRef<HTMLDivElement>(null);
+
+    const handleCampaignDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (confirm("Are you sure you want to delete this campaign? This will also delete all associated tasks and submissions.")) {
+            try {
+                await deleteCampaignMutation.mutateAsync(id);
+                if (activeCampaignId === id) {
+                    handleClearCampaign();
+                }
+            } catch (err) {
+                console.error("Failed to delete campaign", err);
+            }
+        }
+    };
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -194,13 +210,23 @@ export function AdminShell({ session, onLogout }: AdminShellProps) {
                             key={c.id}
                             className={`nav-item ${activeCampaignId === c.id && page === "tasks" && !composing ? "active" : ""}`}
                             onClick={() => handleClickCampaign(c.id)}
+                            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 8 }}
                         >
-                            <span style={{
-                                width: 8, height: 8, borderRadius: "50%",
-                                background: CAMPAIGN_COLORS[i % CAMPAIGN_COLORS.length],
-                                flexShrink: 0,
-                            }} />
-                            <span style={{ fontSize: 12.5 }}>{c.name}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <span style={{
+                                    width: 8, height: 8, borderRadius: "50%",
+                                    background: CAMPAIGN_COLORS[i % CAMPAIGN_COLORS.length],
+                                    flexShrink: 0,
+                                }} />
+                                <span style={{ fontSize: 12.5 }}>{c.name}</span>
+                            </div>
+                            <button
+                                className="sidebar-item-delete-btn"
+                                onClick={(e) => handleCampaignDelete(e, c.id)}
+                                title="Delete Campaign"
+                            >
+                                <MdDelete size={14} />
+                            </button>
                         </div>
                     ))}
                     {isCreatingCampaign ? (

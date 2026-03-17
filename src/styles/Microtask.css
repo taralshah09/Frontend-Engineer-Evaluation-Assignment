@@ -801,6 +801,31 @@ tbody td:first-child {
   border-color: #a7f3d0;
 }
 
+.sidebar-item-delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    opacity: 0;
+    transition: all 0.15s;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.nav-item:hover .sidebar-item-delete-btn {
+    opacity: 1;
+}
+
+.sidebar-item-delete-btn:hover {
+    background: var(--rose-light);
+    color: var(--rose);
+}
+
 .btn-success:hover {
   background: #a7f3d0;
 }

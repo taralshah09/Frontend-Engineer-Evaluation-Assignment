@@ -174,3 +174,15 @@ export function useCreateCampaign() {
         },
     });
 }
+
+export function useDeleteCampaign() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => campaignStore.delete(id),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: campaignKeys.all });
+            qc.invalidateQueries({ queryKey: taskKeys.all });
+            qc.invalidateQueries({ queryKey: submissionKeys.all });
+        },
+    });
+}
