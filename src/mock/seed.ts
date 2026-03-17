@@ -138,6 +138,7 @@ Create a post on your **Twitter/X** or **LinkedIn** account promoting our upcomi
         updated_at: "2026-03-01T09:00:00Z",
         submissions_count: 23,
         approved_count: 18,
+        drip_enabled: false,
     },
     {
         id: "task_002",
@@ -166,6 +167,7 @@ Share our **product launch announcement** post on your Twitter/X, LinkedIn, or F
         updated_at: "2026-03-02T10:00:00Z",
         submissions_count: 61,
         approved_count: 45,
+        drip_enabled: false,
     },
     {
         id: "task_003",
@@ -195,6 +197,7 @@ Write an **authentic review post** about your experience using MicroTask on Link
         updated_at: "2026-03-03T11:00:00Z",
         submissions_count: 12,
         approved_count: 9,
+        drip_enabled: false,
     },
     // Email Sending tasks
     {
@@ -228,6 +231,7 @@ Send a **promotional email** to at least **5 recipients** in your network introd
         updated_at: "2026-03-04T09:30:00Z",
         submissions_count: 34,
         approved_count: 28,
+        drip_enabled: false,
     },
     {
         id: "task_005",
@@ -256,6 +260,7 @@ Email at least **3 friends or colleagues** about the MicroTask referral program.
         updated_at: "2026-03-05T08:00:00Z",
         submissions_count: 89,
         approved_count: 72,
+        drip_enabled: false,
     },
     {
         id: "task_006",
@@ -286,6 +291,7 @@ Emails that look templated or spammy will be rejected immediately.`,
         updated_at: "2026-03-06T10:00:00Z",
         submissions_count: 8,
         approved_count: 5,
+        drip_enabled: false,
     },
     // Social Media Liking tasks
     {
@@ -320,6 +326,7 @@ Visit: \`https://instagram.com/p/microtask_launch_2026\`
         updated_at: "2026-03-06T12:00:00Z",
         submissions_count: 312,
         approved_count: 289,
+        drip_enabled: false,
     },
     {
         id: "task_008",
@@ -350,6 +357,7 @@ Visit: \`https://instagram.com/p/microtask_launch_2026\`
         updated_at: "2026-03-07T09:00:00Z",
         submissions_count: 178,
         approved_count: 156,
+        drip_enabled: false,
     },
     {
         id: "task_009",
@@ -380,6 +388,7 @@ Scroll down to show all 3 posts on screen, take a single screenshot showing all 
         updated_at: "2026-03-07T11:00:00Z",
         submissions_count: 67,
         approved_count: 55,
+        drip_enabled: false,
     },
     {
         id: "task_010",
@@ -406,6 +415,7 @@ Available at: \`https://webinar.microtask.io/march-recap\``,
         updated_at: "2026-03-08T09:00:00Z",
         submissions_count: 40,
         approved_count: 36,
+        drip_enabled: false,
     },
 ];
 
