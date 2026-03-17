@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQueryState } from "nuqs";
-import { useTasks, useCreateSubmission, useSubmissions } from "@/features/hooks";
+import { useTasks, useCreateSubmission, useSubmissions, useCampaigns } from "@/features/hooks";
 import { MarkdownRenderer } from "../../components/common/MarkdownRenderer";
 import { TypeBadge } from "../../components/common/Badge";
 import { calculateDripStatus } from "@/utils/dripUtils";
@@ -62,7 +62,11 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
 
     const { data: tasks = [], isLoading } = useTasks({ status: "active" });
     const { data: mySubs = [] } = useSubmissions({ user_id: session.userId });
+    const { data: campaigns = [] } = useCampaigns();
     const createSubmission = useCreateSubmission();
+
+    const campaignMap = Object.fromEntries(campaigns.map(c => [c.id, c.name]));
+    const getCampaignName = (id: string) => campaignMap[id] || id;
 
     const filtered = tasks
         .filter(t => {
@@ -74,7 +78,7 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
         .filter(t => {
             if (!search) return true;
             const q = search.toLowerCase();
-            return t.title.toLowerCase().includes(q) || t.campaign_id.toLowerCase().includes(q);
+            return t.title.toLowerCase().includes(q) || getCampaignName(t.campaign_id).toLowerCase().includes(q);
         })
         .sort((a, b) => sort === "reward" ? b.reward - a.reward : new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -242,7 +246,7 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                     {slotsLeft} slot{slotsLeft !== 1 ? "s" : ""} remaining
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                    <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{task.campaign_id}</span>
+                                    <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{getCampaignName(task.campaign_id)}</span>
                                     {alreadyDone ? (
                                         <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 4 }}>
                                             Submitted <MdCheck size={14} />
@@ -288,7 +292,7 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                             </span>
                                         )}
                                     </div>
-                                    <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{task.campaign_id}</span>
+                                    <span className="campaign-chip" style={{ fontSize: 11 }}><span style={{ background: "var(--indigo)" }} />{getCampaignName(task.campaign_id)}</span>
                                 </div>
                                 <div className="task-row-meta">
                                     <div style={{ fontSize: 12, color: "var(--text-muted)", marginRight: 8 }}>

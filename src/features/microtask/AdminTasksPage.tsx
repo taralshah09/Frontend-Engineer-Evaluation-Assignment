@@ -7,6 +7,7 @@ import {
     useBulkUpdateTasks,
     useSubmissions,
     useDeleteCampaign,
+    useCampaigns,
 } from "@/features/hooks";
 import { TaskType, TaskStatus } from "@/libs/types";
 import { Badge, TypeBadge } from "../../components/common/Badge";
@@ -60,6 +61,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
 
     const { data: tasks = [], isLoading } = useTasks();
     const { data: allSubs = [] } = useSubmissions();
+    const { data: campaigns = [] } = useCampaigns();
     const deleteMutation = useDeleteTask();
     const deleteCampaignMutation = useDeleteCampaign();
     const updateMutation = useUpdateTask();
@@ -72,6 +74,9 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
         if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
     });
+
+    const campaignMap = Object.fromEntries(campaigns.map(c => [c.id, c.name]));
+    const getCampaignName = (id: string) => campaignMap[id] || id;
 
     const toggleSelect = (id: string) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
     const toggleAll = () => setSelected(selected.length === filtered.length ? [] : filtered.map(t => t.id));
@@ -262,7 +267,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                             <div style={{ fontWeight: 600, fontSize: 13.5, maxWidth: 280, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{task.title}</div>
                                         </td>
                                         <td><TypeBadge type={task.task_type as any} /></td>
-                                        <td><span className="campaign-chip"><span />{task.campaign_id}</span></td>
+                                        <td><span className="campaign-chip"><span />{getCampaignName(task.campaign_id)}</span></td>
                                         <td><span className="reward-chip">${task.reward.toFixed(2)}</span></td>
                                         <td style={{ minWidth: 160 }}>
                                             <ProgressBar
@@ -333,7 +338,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                 <div className="admin-task-card-body">
                                     <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", height: 40 }}>{task.title}</div>
                                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                        <span className="campaign-chip"><span />{task.campaign_id}</span>
+                                        <span className="campaign-chip"><span />{getCampaignName(task.campaign_id)}</span>
                                         <span className="reward-chip">${task.reward.toFixed(2)}</span>
                                     </div>
                                     <div style={{ marginBottom: 4, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
@@ -375,7 +380,7 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                 <TypeBadge type={openTask.task_type as any} />
                                 <div className="sheet-title" style={{ marginTop: 8 }}>{openTask.title}</div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                                    <span className="campaign-chip"><span />{openTask.campaign_id}</span>
+                                    <span className="campaign-chip"><span />{getCampaignName(openTask.campaign_id)}</span>
                                     <Badge status={openTask.status} />
                                 </div>
                             </div>

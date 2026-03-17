@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { taskStore, submissionStore, campaignStore } from "@/storage";
+import { taskStore, submissionStore, campaignStore, userStore } from "@/storage";
 import type {
     Task,
     TaskFilters,
@@ -9,6 +9,7 @@ import type {
     Submission,
     SubmissionFilters,
     SubmissionFormValues,
+    User,
 } from "@/libs/types";
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
@@ -18,6 +19,11 @@ export const taskKeys = {
     all: ["tasks"] as const,
     list: (filters?: TaskFilters) => ["tasks", "list", filters] as const,
     detail: (id: string) => ["tasks", "detail", id] as const,
+};
+
+export const userKeys = {
+    all: ["users"] as const,
+    detail: (id: string) => ["users", "detail", id] as const,
 };
 
 export const submissionKeys = {
@@ -121,11 +127,51 @@ export function useCreateSubmission() {
             userId: string;
             values: SubmissionFormValues;
         }) => submissionStore.create(taskId, userId, values),
+        onMutate: async ({ taskId, userId, values }) => {
+            // Cancel any outgoing refetches
+            await qc.cancelQueries({ queryKey: submissionKeys.all });
+            await qc.cancelQueries({ queryKey: userKeys.detail(userId) });
+
+            // Snapshot the previous value
+            const previousSubmissions = qc.getQueryData(submissionKeys.list({ user_id: userId }));
+            const previousUser = qc.getQueryData<User>(userKeys.detail(userId));
+
+            // Optimistically update to the new value
+            if (previousSubmissions) {
+                const optimisticSub = {
+                    id: `temp-${Date.now()}`,
+                    task_id: taskId,
+                    user_id: userId,
+                    status: "pending" as const,
+                    submitted_at: new Date().toISOString(),
+                    ...values
+                };
+                qc.setQueryData(submissionKeys.list({ user_id: userId }), [optimisticSub, ...(previousSubmissions as any[])]);
+            }
+
+            if (previousUser) {
+                qc.setQueryData(userKeys.detail(userId), {
+                    ...previousUser,
+                    total_submissions: previousUser.total_submissions + 1,
+                });
+            }
+
+            return { previousSubmissions, previousUser };
+        },
+        onError: (err, variables, context) => {
+            if (context?.previousSubmissions) {
+                qc.setQueryData(submissionKeys.list({ user_id: variables.userId }), context.previousSubmissions);
+            }
+            if (context?.previousUser) {
+                qc.setQueryData(userKeys.detail(variables.userId), context.previousUser);
+            }
+        },
         onSuccess: (sub: Submission) => {
             qc.invalidateQueries({ queryKey: submissionKeys.all });
             qc.invalidateQueries({ queryKey: submissionKeys.byTask(sub.task_id) });
             qc.invalidateQueries({ queryKey: taskKeys.detail(sub.task_id) });
             qc.invalidateQueries({ queryKey: taskKeys.all });
+            qc.invalidateQueries({ queryKey: userKeys.detail(sub.user_id) });
         },
     });
 }
@@ -184,5 +230,15 @@ export function useDeleteCampaign() {
             qc.invalidateQueries({ queryKey: taskKeys.all });
             qc.invalidateQueries({ queryKey: submissionKeys.all });
         },
+    });
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export function useUser(id: string) {
+    return useQuery({
+        queryKey: userKeys.detail(id),
+        queryFn: () => userStore.getById(id),
+        enabled: !!id,
     });
 }

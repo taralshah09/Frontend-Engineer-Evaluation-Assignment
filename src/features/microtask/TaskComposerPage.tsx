@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useCreateTask, useUpdateTask, useTask } from "@/features/hooks";
+import { useCreateTask, useUpdateTask, useTask, useCampaigns } from "@/features/hooks";
 import { campaignStore } from "@/storage";
 import type { Campaign, TaskFormValues, TaskType, TaskPhase } from "@/libs/types";
 import {
@@ -16,7 +16,11 @@ import {
     MdAdd,
     MdDeleteOutline,
     MdDragIndicator,
-    MdOutlineAvTimer
+    MdOutlineAvTimer,
+    MdCloudUpload,
+    MdFilePresent,
+    MdTextFields,
+    MdClose
 } from "react-icons/md";
 import { nanoid } from "nanoid";
 import { LexicalEditor } from "@/components/common/LexicalEditor";
@@ -35,12 +39,14 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
     const [reward, setReward] = useState("");
     const [campaign, setCampaign] = useState("");
     const [multiSub, setMultiSub] = useState(false);
-    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [enablePhases, setEnablePhases] = useState(false);
     const [phases, setPhases] = useState<Partial<TaskPhase>[]>([]);
     const [dripEnabled, setDripEnabled] = useState(false);
     const [dripAmount, setDripAmount] = useState("");
     const [dripInterval, setDripInterval] = useState("");
+    const [showBulkModal, setShowBulkModal] = useState(false);
+    const [bulkText, setBulkText] = useState("");
+    const [isBulkProcessing, setIsBulkProcessing] = useState(false);
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
     const createTask = useCreateTask();
@@ -49,9 +55,7 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
 
     const isEditing = !!editTaskId;
 
-    useEffect(() => {
-        campaignStore.getAll().then(setCampaigns).catch(() => { });
-    }, []);
+    const { data: campaigns = [] } = useCampaigns();
 
     useEffect(() => {
         if (existingTask) {
@@ -132,6 +136,64 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
         }
     };
 
+    const handleBulkUpload = async () => {
+        if (!bulkText.trim()) { showToast("Please paste some CSV data.", "error"); return; }
+        if (!campaign) { showToast("Please select a campaign first.", "error"); return; }
+
+        setIsBulkProcessing(true);
+        const lines = bulkText.trim().split("\n");
+        const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+        const tasksToCreate: TaskFormValues[] = [];
+
+        try {
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(",").map(v => v.trim());
+                if (values.length < 2) continue;
+
+                const taskObj: any = {
+                    campaign_id: campaign,
+                    allow_multiple_submissions: false,
+                    drip_enabled: false
+                };
+
+                headers.forEach((header, index) => {
+                    const val = values[index];
+                    if (!val) return;
+
+                    if (header === "title") taskObj.title = val;
+                    else if (header === "description" || header === "desc") taskObj.description = val;
+                    else if (header === "details") taskObj.details = val;
+                    else if (header === "amount" || header === "slots") taskObj.amount = parseInt(val) || 10;
+                    else if (header === "reward") taskObj.reward = parseFloat(val) || 1.0;
+                    else if (header === "type" || header === "task_type") {
+                        if (val.includes("email")) taskObj.task_type = "email_sending";
+                        else if (val.includes("like")) taskObj.task_type = "social_media_liking";
+                        else taskObj.task_type = "social_media_posting";
+                    }
+                });
+
+                if (!taskObj.title || !taskObj.task_type) {
+                    throw new Error(`Line ${i + 1}: Title and Task Type are required. (Type should be 'posting', 'email', or 'liking')`);
+                }
+                tasksToCreate.push(taskObj as TaskFormValues);
+            }
+
+            if (tasksToCreate.length === 0) throw new Error("No valid tasks found in CSV.");
+
+            for (const t of tasksToCreate) {
+                await createTask.mutateAsync(t);
+            }
+
+            showToast(`Successfully created ${tasksToCreate.length} tasks!`);
+            setShowBulkModal(false);
+            setBulkText("");
+        } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : "Bulk upload failed.", "error");
+        } finally {
+            setIsBulkProcessing(false);
+        }
+    };
+
     const isSaving = createTask.isPending || updateTask.isPending;
 
     return (
@@ -140,8 +202,15 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
                 {/* Main form */}
                 <div>
                     <div className="table-card" style={{ padding: 24, marginBottom: 20 }}>
-                        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 600, fontSize: 15, marginBottom: 20 }}>
-                            {isEditing ? "Edit Task" : "Task Details"}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                            <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 600, fontSize: 15 }}>
+                                {isEditing ? "Edit Task" : "Task Details"}
+                            </div>
+                            {!isEditing && (
+                                <button className="btn btn-ghost btn-xs" onClick={() => setShowBulkModal(true)} style={{ color: "var(--indigo)", fontWeight: 600 }}>
+                                    <MdCloudUpload size={16} /> Bulk Upload
+                                </button>
+                            )}
                         </div>
 
                         <div className="form-group">
@@ -464,6 +533,63 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
                     </div>
                 </div>
             </div>
+
+            {showBulkModal && (
+                <div className="sheet-overlay" style={{ zIndex: 1100 }}>
+                    <div className="sheet" style={{ maxWidth: 600 }}>
+                        <div className="sheet-header">
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <MdCloudUpload size={24} color="var(--indigo)" />
+                                <div>
+                                    <div className="sheet-title">Bulk Task Upload</div>
+                                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Create multiple tasks at once via CSV</div>
+                                </div>
+                            </div>
+                            <button className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => setShowBulkModal(false)}><MdClose size={20} /></button>
+                        </div>
+                        <div className="sheet-body">
+                            <div style={{ background: "var(--indigo-light)", padding: "12px 16px", borderRadius: "var(--radius-sm)", marginBottom: 20 }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--indigo)", marginBottom: 4, textTransform: "uppercase" }}>Instructions</div>
+                                <div style={{ fontSize: 12, color: "var(--indigo)", lineHeight: 1.5 }}>
+                                    Paste CSV data below. The first line must be headers.
+                                    Required headers: <code style={{ fontWeight: 700 }}>title, type</code> (posting, email, liking).
+                                    Optional: <code style={{ fontWeight: 700 }}>description, details, amount, reward</code>.
+                                </div>
+                            </div>
+                            
+                            <div className="form-group">
+                                <label className="form-label">CSV Data</label>
+                                <textarea 
+                                    className="input" 
+                                    rows={10} 
+                                    style={{ fontFamily: "monospace", fontSize: 12 }}
+                                    placeholder="title, type, amount, reward&#10;Promote Website, posting, 20, 2.5&#10;Send Cold Email, email, 50, 1.0"
+                                    value={bulkText}
+                                    onChange={e => setBulkText(e.target.value)}
+                                />
+                            </div>
+
+                            {!campaign && (
+                                <div style={{ fontSize: 12, color: "var(--rose)", background: "rgba(225,29,72,0.05)", padding: 10, borderRadius: 6, display: "flex", gap: 8, alignItems: "center" }}>
+                                    <MdCancel size={16} /> Please select a campaign in the main form first.
+                                </div>
+                            )}
+                        </div>
+                        <div className="sheet-footer">
+                            <button 
+                                className="btn btn-primary" 
+                                style={{ flex: 1, justifyContent: "center" }}
+                                onClick={handleBulkUpload}
+                                disabled={isBulkProcessing || !campaign}
+                            >
+                                {isBulkProcessing ? <MdHourglassEmpty size={18} className="animate-spin" /> : <MdCheckCircle size={18} />}
+                                {isBulkProcessing ? "Creating Tasks..." : "Start Import"}
+                            </button>
+                            <button className="btn btn-outline" onClick={() => setShowBulkModal(false)}>Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {toast && (
                 <div className="toast">
