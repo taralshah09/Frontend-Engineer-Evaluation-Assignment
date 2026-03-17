@@ -11,6 +11,7 @@ import {
 import { TaskType, TaskStatus } from "@/libs/types";
 import { Badge, TypeBadge } from "../../components/common/Badge";
 import { ProgressBar } from "../../components/common/ProgressBar";
+import { calculateDripStatus } from "@/utils/dripUtils";
 import {
     MdFlashOn,
     MdOutlineInbox,
@@ -25,7 +26,8 @@ import {
     MdClose,
     MdArrowForward,
     MdViewModule,
-    MdViewList
+    MdViewList,
+    MdOutlineAvTimer
 } from "react-icons/md";
 
 interface AdminTasksPageProps {
@@ -275,7 +277,17 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo)" }}>
                                                     Phase {task.current_phase_index + 1}/{task.phases.length}
                                                 </div>
-                                            ) : (
+                                            ) : task.drip_enabled ? (() => {
+                                                const ds = calculateDripStatus(task);
+                                                return (
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 4, color: ds.state === "Completed" ? "var(--emerald)" : "var(--indigo)" }}>
+                                                        <MdOutlineAvTimer size={14} />
+                                                        <span style={{ fontSize: 10, fontWeight: 700 }}>
+                                                            {ds.state === "Waiting" ? `Next in ${ds.nextReleaseIn}m` : ds.state === "Completed" ? "All Released" : "Drip Active"}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })() : (
                                                 <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>
                                             )}
                                         </td>
@@ -310,6 +322,11 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                     {task.phases && task.current_phase_index !== undefined && (
                                         <span style={{ fontSize: 10, fontWeight: 700, color: "var(--indigo)", background: "var(--indigo-light)", padding: "1px 6px", borderRadius: 3 }}>
                                             P{task.current_phase_index + 1}/{task.phases.length}
+                                        </span>
+                                    )}
+                                    {task.drip_enabled && (
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: "var(--indigo)", background: "var(--indigo-light)", padding: "1px 6px", borderRadius: 3, display: "flex", alignItems: "center", gap: 2 }}>
+                                            <MdOutlineAvTimer size={12} /> Drip
                                         </span>
                                     )}
                                 </div>
@@ -402,6 +419,37 @@ export function AdminTasksPage({ onOpenComposer, onEditTask, onViewSubmissions, 
                                                 </div>
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {openTask.drip_enabled && (
+                                <div style={{ marginBottom: 20 }}>
+                                    <div className="form-label" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                                        <MdOutlineAvTimer size={16} /> Drip Release Progress
+                                    </div>
+                                    <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 16 }}>
+                                        {(() => {
+                                            const ds = calculateDripStatus(openTask);
+                                            return (
+                                                <>
+                                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 12 }}>
+                                                        <span style={{ fontWeight: 600, color: ds.state === "Completed" ? "var(--emerald)" : "var(--indigo)" }}>
+                                                            {ds.state === "Completed" ? "All batches released" : ds.state === "Waiting" ? `Waiting batch: ${ds.nextReleaseIn}m left` : "Batch releasing..."}
+                                                        </span>
+                                                        <span style={{ color: "var(--text-muted)" }}>{ds.releasedSlots} / {openTask.amount} slots</span>
+                                                    </div>
+                                                    <ProgressBar 
+                                                        value={ds.releasedSlots} 
+                                                        max={openTask.amount} 
+                                                        color={ds.state === "Completed" ? "#10b981" : "#6366f1"}
+                                                    />
+                                                    <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)" }}>
+                                                        Releasing {openTask.drip_amount} slots every {openTask.drip_interval} mins.
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             )}

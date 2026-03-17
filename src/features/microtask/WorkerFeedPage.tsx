@@ -3,6 +3,8 @@ import { useQueryState } from "nuqs";
 import { useTasks, useCreateSubmission, useSubmissions } from "@/features/hooks";
 import { MarkdownRenderer } from "../../components/common/MarkdownRenderer";
 import { TypeBadge } from "../../components/common/Badge";
+import { calculateDripStatus } from "@/utils/dripUtils";
+import { MdOutlineAvTimer } from "react-icons/md";
 import type { Session, Task, SubmissionFormValues } from "@/libs/types";
 import {
     MdCampaign,
@@ -245,11 +247,25 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                         <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 4 }}>
                                             Submitted <MdCheck size={14} />
                                         </span>
-                                    ) : (
-                                        <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                            Submit <MdArrowForward size={14} />
-                                        </button>
-                                    )}
+                                    ) : (() => {
+                                        if (task.drip_enabled) {
+                                            const ds = calculateDripStatus(task);
+                                            const availableDripSlots = ds.releasedSlots - task.approved_count;
+                                            if (availableDripSlots <= 0) {
+                                                return (
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--indigo)", background: "var(--indigo-light)", padding: "4px 8px", borderRadius: 6 }}>
+                                                        <MdOutlineAvTimer size={14} />
+                                                        <span style={{ fontSize: 10, fontWeight: 700 }}>Next in {ds.nextReleaseIn}m</span>
+                                                    </div>
+                                                );
+                                            }
+                                        }
+                                        return (
+                                            <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                                Submit <MdArrowForward size={14} />
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         );
@@ -281,11 +297,25 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                     <div className="task-row-reward">${task.reward.toFixed(2)}</div>
                                     {alreadyDone ? (
                                         <MdCheckCircle size={20} color="var(--emerald)" title="Submitted" />
-                                    ) : (
-                                        <button className="btn btn-primary btn-xs" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }}>
-                                            Submit
-                                        </button>
-                                    )}
+                                    ) : (() => {
+                                        if (task.drip_enabled) {
+                                            const ds = calculateDripStatus(task);
+                                            const availableDripSlots = ds.releasedSlots - task.approved_count;
+                                            if (availableDripSlots <= 0) {
+                                                return (
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--indigo)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--indigo)" }}>
+                                                        <MdOutlineAvTimer size={12} />
+                                                        <span style={{ fontSize: 10, fontWeight: 700 }}>{ds.nextReleaseIn}m</span>
+                                                    </div>
+                                                );
+                                            }
+                                        }
+                                        return (
+                                            <button className="btn btn-primary btn-xs" onClick={e => { e.stopPropagation(); setOpenTask(task); setSubmitMode(true); }}>
+                                                Submit
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         );
@@ -322,7 +352,15 @@ export function WorkerFeedPage({ session }: WorkerFeedPageProps) {
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
                                         {[
                                             { label: "Reward", value: `$${(openTask.phases && openTask.current_phase_index !== undefined ? openTask.phases[openTask.current_phase_index].reward : openTask.reward).toFixed(2)} AUD` },
-                                            { label: "Slots left", value: `${openTask.phases && openTask.current_phase_index !== undefined ? Math.max(0, openTask.phases[openTask.current_phase_index].slots - openTask.phases[openTask.current_phase_index].approved_count) : Math.max(0, openTask.amount - openTask.approved_count)}` },
+                                            { label: "Slots left", value: `${(() => {
+                                                if (openTask.drip_enabled) {
+                                                    const ds = calculateDripStatus(openTask);
+                                                    return Math.max(0, ds.releasedSlots - openTask.approved_count);
+                                                }
+                                                return openTask.phases && openTask.current_phase_index !== undefined 
+                                                    ? Math.max(0, openTask.phases[openTask.current_phase_index].slots - openTask.phases[openTask.current_phase_index].approved_count) 
+                                                    : Math.max(0, openTask.amount - openTask.approved_count);
+                                            })()}` },
                                         ].map(s => (
                                             <div key={s.label} style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
                                                 <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>{s.label}</div>

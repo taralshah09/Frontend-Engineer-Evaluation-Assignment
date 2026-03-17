@@ -15,7 +15,8 @@ import {
     MdAttachFile,
     MdAdd,
     MdDeleteOutline,
-    MdDragIndicator
+    MdDragIndicator,
+    MdOutlineAvTimer
 } from "react-icons/md";
 import { nanoid } from "nanoid";
 import { LexicalEditor } from "@/components/common/LexicalEditor";
@@ -37,6 +38,9 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [enablePhases, setEnablePhases] = useState(false);
     const [phases, setPhases] = useState<Partial<TaskPhase>[]>([]);
+    const [dripEnabled, setDripEnabled] = useState(false);
+    const [dripAmount, setDripAmount] = useState("");
+    const [dripInterval, setDripInterval] = useState("");
     const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
     const createTask = useCreateTask();
@@ -63,6 +67,9 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
                 setEnablePhases(true);
                 setPhases(existingTask.phases);
             }
+            setDripEnabled(existingTask.drip_enabled ?? false);
+            setDripAmount(existingTask.drip_amount ? String(existingTask.drip_amount) : "");
+            setDripInterval(existingTask.drip_interval ? String(existingTask.drip_interval) : "");
         }
     }, [existingTask]);
 
@@ -97,6 +104,10 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
             allow_multiple_submissions: multiSub,
             campaign_id: campaign,
             phases: enablePhases ? phases as TaskPhase[] : undefined,
+            drip_enabled: dripEnabled,
+            drip_amount: dripEnabled ? parseInt(dripAmount) : undefined,
+            drip_interval: dripEnabled ? parseInt(dripInterval) : undefined,
+            drip_start_time: (dripEnabled && !existingTask?.drip_start_time) ? new Date().toISOString() : existingTask?.drip_start_time,
         };
 
         try {
@@ -112,6 +123,9 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
                 setMultiSub(false);
                 setEnablePhases(false);
                 setPhases([]);
+                setDripEnabled(false);
+                setDripAmount("");
+                setDripInterval("");
             }
         } catch (err: unknown) {
             showToast(err instanceof Error ? err.message : "Failed to save task. Please try again.", "error");
@@ -371,6 +385,56 @@ export function TaskComposerPage({ onBack, editTaskId }: TaskComposerPageProps) 
                                 </div>
                                 <div style={{ fontSize: 12, color: "#6366f1", marginTop: 2 }}>
                                     {enablePhases ? `${phases.length} phases, ${phases.reduce((acc, p) => acc + (p.slots || 0), 0)} total slots` : `${amount} workers × $${parseFloat(reward || "0").toFixed(2)} each`}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="table-card" style={{ padding: 20, marginBottom: 16 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: dripEnabled ? 16 : 0 }}>
+                            <div>
+                                <div style={{ fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+                                    <MdOutlineAvTimer size={18} color="var(--indigo)" /> Drip Feed Slots
+                                </div>
+                                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Release slots in controlled batches</div>
+                            </div>
+                            <div
+                                style={{ width: 40, height: 22, borderRadius: 99, background: dripEnabled ? "var(--indigo)" : "#d1d5db", cursor: "pointer", padding: "2px", transition: "background 0.2s", display: "flex", alignItems: "center" }}
+                                onClick={() => setDripEnabled(!dripEnabled)}
+                            >
+                                <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", transform: `translateX(${dripEnabled ? "18px" : "0"})`, transition: "transform 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                            </div>
+                        </div>
+
+                        {dripEnabled && (
+                            <div className="animate-in" style={{ padding: "12px 0 0", borderTop: "1px solid var(--border)", marginTop: 12 }}>
+                                <div className="form-grid-2" style={{ gap: 12 }}>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                        <label className="form-label" style={{ fontSize: 11 }}>Release Amount</label>
+                                        <input 
+                                            className="input input-sm" 
+                                            type="number" 
+                                            placeholder="e.g. 5" 
+                                            value={dripAmount} 
+                                            onChange={e => setDripAmount(e.target.value)} 
+                                        />
+                                        <div className="form-hint" style={{ fontSize: 10 }}>Slots per batch</div>
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                        <label className="form-label" style={{ fontSize: 11 }}>Interval (mins)</label>
+                                        <input 
+                                            className="input input-sm" 
+                                            type="number" 
+                                            placeholder="e.g. 60" 
+                                            value={dripInterval} 
+                                            onChange={e => setDripInterval(e.target.value)} 
+                                        />
+                                        <div className="form-hint" style={{ fontSize: 10 }}>How often to release</div>
+                                    </div>
+                                </div>
+                                <div style={{ marginTop: 12, padding: "8px 10px", background: "var(--indigo-light)", borderRadius: 6, color: "var(--indigo)", fontSize: 11, display: "flex", gap: 6 }}>
+                                    <MdHelpOutline size={14} style={{ flexShrink: 0 }} />
+                                    <span>Release {dripAmount || "X"} slots every {dripInterval || "Y"} minutes until {enablePhases ? phases.reduce((acc, p) => acc + (p.slots || 0), 0) : (amount || "total")} slots reached.</span>
                                 </div>
                             </div>
                         )}

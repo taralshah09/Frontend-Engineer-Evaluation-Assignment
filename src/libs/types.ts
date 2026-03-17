@@ -61,6 +61,10 @@ export interface Task {
   approved_count: number;
   phases?: TaskPhase[];
   current_phase_index?: number;
+  drip_enabled: boolean;
+  drip_amount?: number;
+  drip_interval?: number; // in minutes
+  drip_start_time?: string; // ISO date string
 }
 
 export interface TaskFormValues {
@@ -73,6 +77,10 @@ export interface TaskFormValues {
   allow_multiple_submissions: boolean;
   campaign_id: string;
   phases?: TaskPhase[];
+  drip_enabled: boolean;
+  drip_amount?: number;
+  drip_interval?: number;
+  drip_start_time?: string;
 }
 
 // ─── Submission ───────────────────────────────────────────────────────────────
